@@ -1,4 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+// Supabase接続
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+const SUPABASE_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY;
+
+async function supabaseFetch(table, options = {}) {
+  const { filter, order, limit } = options;
+  let url = `${SUPABASE_URL}/rest/v1/${table}?select=*`;
+  if (filter) url += `&${filter}`;
+  if (order) url += `&order=${order}`;
+  if (limit) url += `&limit=${limit}`;
+  const res = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return res.json();
+}
+
+async function supabaseInsert(table, data) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(data),
+  });
+  return res.ok;
+}
 
 // ============================================================
 // データ定義
