@@ -449,8 +449,18 @@ async function fetchKokkaiSpeeches(limit = 12) {
     const speechRecords = data.speechRecord || [];
     const list = Array.isArray(speechRecords) ? speechRecords : [speechRecords];
 
+    // 議長・委員長・事務局などの形式的発言を除外
+    const EXCLUDE_ROLES = ["委員長", "議長", "副議長", "副委員長", "事務総長", "会議録情報", "○委員長"];
+    const EXCLUDE_SPEECHES = ["御異議なしと認めます", "これより会議を開きます", "次の案件を議題", "採決いたします", "可決されました", "ただいまから"];
+
     return list
-      .filter(s => s.speaker && s.speech && s.speaker !== "会議録情報" && s.speakerYomi)
+      .filter(s => {
+        if (!s.speaker || !s.speech || !s.speakerYomi) return false;
+        if (EXCLUDE_ROLES.some(r => s.speaker.includes(r))) return false;
+        if (EXCLUDE_SPEECHES.some(e => (s.speech || "").includes(e))) return false;
+        if ((s.speech || "").length < 50) return false; // 短すぎる発言を除外
+        return true;
+      })
       .slice(0, limit)
       .map(s => ({
         speaker: s.speaker,
@@ -470,10 +480,13 @@ async function fetchKokkaiMeetings(limit = 20) {
     if (!res.ok) return [];
     const data = await res.json();
 
-    // meetingRecord が直接ルートにある場合
-    const meetingRecords = data.meetingRecord || data.records || [];
-    const list = Array.isArray(meetingRecords) ? meetingRecords : [meetingRecords];
+    // speech APIと同じ構造：speechRecordがルートにある
+    // meeting_listの場合はmeetingRecordがルート
+    const records = data.meetingRecord || data.speechRecord || data.records || [];
+    const list = Array.isArray(records) ? records : [records];
 
+    // 重複除去（同じ会議名・日付）
+    const seen = new Set();
     return list
       .map(m => ({
         date: m.date || "",
@@ -482,7 +495,13 @@ async function fetchKokkaiMeetings(limit = 20) {
         url: m.meetingURL || "#",
         issueNumber: m.issue || "",
       }))
-      .filter(m => m.date && m.meeting);
+      .filter(m => {
+        if (!m.date || !m.meeting) return false;
+        const key = `${m.date}-${m.meeting}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
   } catch { return []; }
 }
 
@@ -870,6 +889,62 @@ function DetailPanel({ politician: p, onClose }) {
 // ============================================================
 // メインApp
 // ============================================================
+// ============================================================
+// 利用規約ページ
+// ============================================================
+function TermsPage() {
+  const sections = [
+    {
+      title: "1. サービスについて",
+      content: "政治家レビュー（以下「本サービス」）は、国会議員に関する公開情報の閲覧および市民による口コミの投稿・共有を目的としたプラットフォームです。本サービスは政治的中立を保ち、特定の政党・候補者を支持・批判する目的では運営していません。"
+    },
+    {
+      title: "2. 禁止事項",
+      content: "以下の投稿は禁止します：\n・事実に基づかない虚偽の情報\n・誹謗中傷・人格攻撃\n・個人情報（住所・電話番号等）の記載\n・差別的・暴力的な表現\n・選挙運動・政治的勧誘を目的とした投稿\n・著作権を侵害するコンテンツ"
+    },
+    {
+      title: "3. 口コミの取り扱い",
+      content: "投稿された口コミは匿名で公開されます。運営は不適切な口コミを予告なく削除する権利を有します。口コミの内容は投稿者の意見であり、運営の見解を表すものではありません。"
+    },
+    {
+      title: "4. データの出典",
+      content: "議員データは各議員の公式プロフィール等の公開情報を元にしています。国会会議録データは国立国会図書館「国会会議録検索システム」APIより取得しています（出典：国立国会図書館）。"
+    },
+    {
+      title: "5. 免責事項",
+      content: "本サービスに掲載される情報の正確性・完全性について保証しません。本サービスの利用により生じた損害について、運営は一切の責任を負いません。"
+    },
+    {
+      title: "6. 削除依頼",
+      content: "掲載情報や口コミへの削除依頼は、サービス内のお問い合わせフォームよりご連絡ください。内容を確認の上、適切に対応いたします。"
+    },
+    {
+      title: "7. プライバシーポリシー",
+      content: "本サービスは口コミ投稿時に個人を特定できる情報を収集しません。アクセス解析のためCookieを使用する場合があります。"
+    },
+  ];
+
+  return (
+    <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 110px)" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px" }}>
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1E293B", marginBottom: 6 }}>利用規約・プライバシーポリシー</h1>
+          <p style={{ fontSize: 13, color: "#94A3B8" }}>最終更新日：2025年5月14日</p>
+        </div>
+        {sections.map((s, i) => (
+          <div key={i} style={{ background: "#fff", borderRadius: 12, padding: "16px 20px", marginBottom: 10, border: "1px solid #E2E8F0" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#1E293B", marginBottom: 8 }}>{s.title}</div>
+            <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.8, whiteSpace: "pre-line" }}>{s.content}</div>
+          </div>
+        ))}
+        <div style={{ textAlign: "center", padding: "20px 0", fontSize: 12, color: "#94A3B8" }}>
+          © 2025 政治家レビュー · 国会会議録データ出典：国立国会図書館
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [page, setPage] = useState("map");
   const [selectedPol, setSelectedPol] = useState(null);
@@ -878,7 +953,6 @@ export default function App() {
   useEffect(() => {
     async function loadStats() {
       const all = await supabaseFetch("politicians", { select: "id,house", limit: 1000 });
-      const reviews = await supabaseFetch("reviews", { select: "id", limit: 1 });
       if (all?.length) {
         setStats({
           total: all.length,
@@ -899,10 +973,22 @@ export default function App() {
       {page === "news" && <NewsPage onSelect={setSelectedPol} />}
       {page === "kokkai" && <KokkaiPage onSelect={setSelectedPol} />}
       {page === "schedule" && <SchedulePage />}
+      {page === "terms" && <TermsPage />}
       {selectedPol && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, maxHeight: "70vh", overflowY: "auto", boxShadow: "0 -8px 32px rgba(0,0,0,0.15)" }}>
           <DetailPanel politician={selectedPol} onClose={() => setSelectedPol(null)} />
         </div>
+      )}
+      {/* フッター */}
+      {!selectedPol && (
+        <footer style={{ borderTop: "1px solid #E2E8F0", padding: "16px 20px", background: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <span style={{ fontSize: 12, color: "#94A3B8" }}>© 2025 政治家レビュー</span>
+          <div style={{ display: "flex", gap: 16 }}>
+            <button onClick={() => setPage("terms")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>利用規約</button>
+            <button onClick={() => setPage("terms")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>プライバシーポリシー</button>
+            <span style={{ fontSize: 12, color: "#94A3B8" }}>国会データ出典：国立国会図書館</span>
+          </div>
+        </footer>
       )}
     </div>
   );
