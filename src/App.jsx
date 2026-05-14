@@ -37,13 +37,11 @@ async function supabaseInsert(table, data) {
 }
 
 // ============================================================
-// 議員アバター画像（衆参公式サイトのプロフィール画像URL）
-// 著作権：議員の公式プロフィール画像・政治活動目的での利用
+// Wikipedia API画像キャッシュ
+// Wikipedia REST APIから画像URLを取得してキャッシュ
+// ライセンス：CC BY-SA等のもののみ使用（APIレスポンスで確認）
 // ============================================================
-const POLITICIAN_IMAGES = {
-  "岸田 文雄": "https://www.shugiin.go.jp/internet/itdb_giinprof.nsf/html/profile/DP_photos/kishida.jpg",
-  "石破 茂":   "https://www.shugiin.go.jp/internet/itdb_giinprof.nsf/html/profile/DP_photos/ishiba.jpg",
-};
+const wikiImageCache = {};
 
 // ============================================================
 // 定数・スタイル
@@ -89,11 +87,33 @@ function Stars({ rating, size = 14 }) {
 }
 
 function PoliticianAvatar({ politician, size = 44 }) {
+  const [imgUrl, setImgUrl] = useState(null);
   const [imgError, setImgError] = useState(false);
   const name = politician?.name || "";
-  const imgUrl = POLITICIAN_IMAGES[name];
   const ps = PARTY_STYLE[politician?.party] || { bg: "#F1F5F9", text: "#64748B" };
   const initials = name.slice(0, 2);
+
+  useEffect(() => {
+    if (!name) return;
+    // スペースなしの名前でWikipedia APIを検索
+    const wikiName = name.replace(/\s/g, "");
+    if (wikiImageCache[wikiName]) {
+      setImgUrl(wikiImageCache[wikiName]);
+      return;
+    }
+    // Wikipedia REST APIで画像URLを取得
+    fetch(`https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiName)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        // originalimage が存在し、サイズが小さすぎない場合のみ使用
+        const url = data?.thumbnail?.source || data?.originalimage?.source || null;
+        wikiImageCache[wikiName] = url;
+        setImgUrl(url);
+      })
+      .catch(() => {
+        wikiImageCache[wikiName] = null;
+      });
+  }, [name]);
 
   if (imgUrl && !imgError) {
     return (
