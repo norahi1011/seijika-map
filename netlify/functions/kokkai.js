@@ -2,8 +2,8 @@
 // ブラウザからのCORSを回避してサーバーサイドで国会APIにアクセス
 
 exports.handler = async (event) => {
-  const { type, limit = 10, from } = event.queryStringParameters || {};
-  
+  const { type, limit = 20, from } = event.queryStringParameters || {};
+
   const fromDate = from || (() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 2);
@@ -13,13 +13,13 @@ exports.handler = async (event) => {
   try {
     let url;
     if (type === "meeting") {
-      url = `https://kokkai.ndl.go.jp/api/meeting?maximumRecords=${limit}&recordPacking=json&from=${fromDate}`;
+      url = `https://kokkai.ndl.go.jp/api/meeting_list?maximumRecords=${limit}&recordPacking=json&from=${fromDate}`;
     } else {
       url = `https://kokkai.ndl.go.jp/api/speech?maximumRecords=${limit}&recordPacking=json&from=${fromDate}`;
     }
 
     const res = await fetch(url, {
-      headers: { "User-Agent": "seijika-review/1.0 (https://seijika-review.netlify.app)" }
+      headers: { "User-Agent": "seijika-review/1.0 (https://seijika-map.netlify.app)" }
     });
 
     if (!res.ok) {
@@ -36,7 +36,7 @@ exports.handler = async (event) => {
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "public, max-age=300", // 5分キャッシュ
+        "Cache-Control": "public, max-age=300",
       },
       body: JSON.stringify(data),
     };
