@@ -117,30 +117,51 @@ function LoadingSpinner() {
 // ============================================================
 // ヘッダー
 // ============================================================
-function Header({ page, setPage }) {
+function Header({ page, setPage, stats }) {
   const navs = [
-    { key: "ranking", label: "🏆 ランキング" },
-    { key: "map", label: "🗺️ 地図で探す" },
-    { key: "news", label: "📰 ニュース" },
-    { key: "kokkai", label: "🏛️ 国会記録" },
-    { key: "schedule", label: "📅 国会日程" },
+    { key: "map", label: "地図で探す" },
+    { key: "ranking", label: "ランキング" },
+    { key: "news", label: "ニュース" },
+    { key: "kokkai", label: "国会記録" },
+    { key: "schedule", label: "国会日程" },
   ];
   return (
-    <header style={{ background: "#fff", borderBottom: "2px solid #F1F5F9", padding: "0 20px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => setPage("ranking")}>
-        <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🗳️</div>
-        <span style={{ fontSize: 16, fontWeight: 800, color: "#1E293B" }}>政治家マップ</span>
+    <header style={{ background: "#fff", borderBottom: "1px solid #E2E8F0", position: "sticky", top: 0, zIndex: 100 }}>
+      <div style={{ padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => setPage("map")}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: "#EEF2FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🗳️</div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1E293B", lineHeight: 1.2 }}>政治家マップ</div>
+            <div style={{ fontSize: 11, color: "#94A3B8" }}>議員の活動記録と口コミを共有するプラットフォーム</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 16 }}>
+            {[
+              { num: stats?.total || 84, label: "掲載議員数" },
+              { num: stats?.shugiin || 54, label: "衆議院" },
+              { num: stats?.sangiin || 30, label: "参議院" },
+              { num: stats?.reviews || 0, label: "口コミ件数" },
+            ].map((s, i) => (
+              <div key={i} style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#1E293B" }}>{s.num.toLocaleString()}</div>
+                <div style={{ fontSize: 10, color: "#94A3B8" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button style={{ fontSize: 12, padding: "5px 14px", borderRadius: 6, border: "1px solid #E2E8F0", background: "#fff", color: "#64748B", cursor: "pointer" }}>ログイン</button>
+            <button style={{ fontSize: 12, padding: "5px 14px", borderRadius: 6, border: "none", background: "#4F46E5", color: "#fff", cursor: "pointer", fontWeight: 600 }}>新規登録</button>
+          </div>
+        </div>
       </div>
-      <nav style={{ display: "flex", gap: 2 }}>
+      <nav style={{ display: "flex", padding: "0 20px", background: "#FAFAFA" }}>
         {navs.map(n => (
-          <button key={n.key} onClick={() => setPage(n.key)} style={{ fontSize: 12, padding: "5px 10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, background: page === n.key ? "#EEF2FF" : "transparent", color: page === n.key ? "#4F46E5" : "#94A3B8" }}>
+          <button key={n.key} onClick={() => setPage(n.key)} style={{ fontSize: 13, padding: "10px 16px", border: "none", background: "none", cursor: "pointer", color: page === n.key ? "#4F46E5" : "#64748B", borderBottom: `2px solid ${page === n.key ? "#4F46E5" : "transparent"}`, fontWeight: page === n.key ? 600 : 400 }}>
             {n.label}
           </button>
         ))}
       </nav>
-      <button style={{ fontSize: 13, padding: "6px 16px", borderRadius: 20, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", color: "#fff", border: "none", cursor: "pointer", fontWeight: 700 }}>
-        ログイン / 登録
-      </button>
     </header>
   );
 }
@@ -246,13 +267,14 @@ function MapPage({ onSelect }) {
   const [politicians, setPoliticians] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [houseFilter, setHouseFilter] = useState("全て");
   const [selected, setSelected] = useState(null);
 
   useEffect(() => {
     async function load() {
       const data = await supabaseFetch("politicians", {
         select: "*,parties(name,short_name,color_hex)",
-        order: "avg_rating.desc",
+        order: "question_count.desc",
       });
       setPoliticians(data || []);
       setLoading(false);
@@ -260,63 +282,148 @@ function MapPage({ onSelect }) {
     load();
   }, []);
 
-  const filtered = politicians.filter(p =>
-    !search || p.name?.includes(search) || p.district?.includes(search) || p.parties?.short_name?.includes(search)
-  );
+  const filtered = politicians.filter(p => {
+    const ms = !search || p.name?.includes(search) || p.district?.includes(search) || p.parties?.short_name?.includes(search) || p.parties?.name?.includes(search);
+    const mh = houseFilter === "全て" || p.house === houseFilter;
+    return ms && mh;
+  });
+
+  const PR = { "自民党":"#EFF6FF", "立憲民主":"#FDF2F8", "公明党":"#FFFBEB", "日本維新":"#FFF7ED", "国民民主":"#F5F3FF", "共産党":"#FEF2F2", "れいわ":"#FDF4FF", "社民党":"#FFF1F2" };
+  const PT = { "自民党":"#1D4ED8", "立憲民主":"#BE185D", "公明党":"#B45309", "日本維新":"#C2410C", "国民民主":"#6D28D9", "共産党":"#DC2626", "れいわ":"#9333EA", "社民党":"#E11D48" };
+
+  const pName = p => p.parties?.short_name || p.parties?.name || "無所属";
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", minHeight: "calc(100vh - 54px)" }}>
-      <div style={{ borderRight: "2px solid #F1F5F9", background: "#fff", overflowY: "auto" }}>
-        <div style={{ padding: "12px 14px", borderBottom: "1px solid #F1F5F9", position: "sticky", top: 0, background: "#fff" }}>
-          <div style={{ position: "relative" }}>
-            <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#94A3B8" }}>🔍</span>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="議員名・政党で検索..." style={{ width: "100%", fontSize: 13, padding: "7px 10px 7px 32px", borderRadius: 10, border: "2px solid #E2E8F0", outline: "none", boxSizing: "border-box", color: "#1E293B" }} />
+    <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", minHeight: "calc(100vh - 110px)" }}>
+      {/* 左：検索＋議員リスト */}
+      <div style={{ borderRight: "1px solid #E2E8F0", background: "#fff", display: "flex", flexDirection: "column" }}>
+        {/* 検索 */}
+        <div style={{ padding: "12px 14px", borderBottom: "1px solid #F1F5F9", background: "#FAFAFA" }}>
+          <div style={{ fontSize: 12, color: "#64748B", marginBottom: 8 }}>議員名・選挙区・政党で絞り込んで口コミを確認できます</div>
+          <div style={{ position: "relative", marginBottom: 8 }}>
+            <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#94A3B8" }}>🔍</span>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="例：田中、東京、自民党..." style={{ width: "100%", fontSize: 12, padding: "6px 10px 6px 28px", borderRadius: 6, border: "1px solid #E2E8F0", outline: "none", boxSizing: "border-box", color: "#1E293B", background: "#fff" }} />
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            {["全て","衆議院","参議院"].map(f => (
+              <button key={f} onClick={() => setHouseFilter(f)} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, border: `1px solid ${houseFilter === f ? "#4F46E5" : "#E2E8F0"}`, background: houseFilter === f ? "#EEF2FF" : "#fff", color: houseFilter === f ? "#4F46E5" : "#64748B", cursor: "pointer" }}>{f}</button>
+            ))}
           </div>
         </div>
-        {loading ? <LoadingSpinner /> : (
-          <div style={{ padding: "8px 0" }}>
-            {filtered.map(p => {
-              const ps = PARTY_STYLE[p.parties?.short_name] || PARTY_STYLE[p.parties?.name] || { bg: "#F1F5F9", text: "#64748B" };
-              return (
-                <div key={p.id} onClick={() => { setSelected(p.id); onSelect(p); }}
-                  style={{ padding: "10px 14px", cursor: "pointer", borderLeft: `3px solid ${selected === p.id ? "#6366F1" : "transparent"}`, background: selected === p.id ? "#EEF2FF" : "transparent", display: "flex", gap: 10, alignItems: "center" }}>
-                  <PoliticianAvatar politician={{ ...p, party: p.parties?.short_name || p.parties?.name }} size={36} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1E293B", marginBottom: 2 }}>{p.name}</div>
-                    <div style={{ fontSize: 11, color: "#94A3B8" }}>{p.house} · {p.district}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
-                      <Stars rating={p.avg_rating} size={11} />
+        {/* リスト */}
+        <div style={{ overflowY: "auto", flex: 1 }}>
+          {loading ? <LoadingSpinner /> : (
+            <>
+              <div style={{ padding: "8px 14px", fontSize: 11, color: "#94A3B8", borderBottom: "1px solid #F1F5F9", background: "#FAFAFA" }}>{filtered.length}名の議員 · 質問回数順</div>
+              {filtered.map(p => {
+                const pn = pName(p);
+                const pbg = PR[pn] || "#F1F5F9";
+                const ptx = PT[pn] || "#64748B";
+                return (
+                  <div key={p.id} onClick={() => { setSelected(p.id); onSelect(p); }}
+                    style={{ padding: "9px 14px", cursor: "pointer", borderLeft: `3px solid ${selected === p.id ? "#4F46E5" : "transparent"}`, background: selected === p.id ? "#EEF2FF" : "transparent", display: "flex", gap: 9, alignItems: "center", borderBottom: "1px solid #F8FAFC" }}>
+                    <PoliticianAvatar politician={{ ...p, party: pn }} size={34} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 1 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B" }}>{p.name}</span>
+                        <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 20, background: pbg, color: ptx }}>{pn}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "#94A3B8" }}>{p.house} · {p.district}</div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+                        <Stars rating={p.avg_rating} size={11} />
+                        {p.question_count > 0 && <span style={{ fontSize: 10, color: "#94A3B8" }}>質問{p.question_count}回</span>}
+                      </div>
                     </div>
                   </div>
-                  <Badge text={p.parties?.short_name || "無所属"} bg={ps.bg} color={ps.text} />
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </>
+          )}
+        </div>
       </div>
-      <div style={{ background: "#F8FAFF", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, position: "relative" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 13, color: "#94A3B8", marginBottom: 16, fontWeight: 600 }}>都道府県をクリックして議員を絞り込む</div>
-          <svg viewBox="0 0 500 600" style={{ width: "100%", maxWidth: 420 }} xmlns="http://www.w3.org/2000/svg">
-            <g style={{ cursor: "pointer" }}><ellipse cx="370" cy="70" rx="80" ry="50" fill="#C7D2FE" stroke="#6366F1" strokeWidth="1.5" opacity="0.8" /><text x="370" y="68" textAnchor="middle" fontSize="11" fontWeight="700" fill="#3730A3">北海道</text><text x="370" y="82" textAnchor="middle" fontSize="10" fill="#4338CA">25名</text></g>
-            <g style={{ cursor: "pointer" }}><ellipse cx="370" cy="160" rx="45" ry="60" fill="#A5B4FC" stroke="#6366F1" strokeWidth="1.5" opacity="0.8" /><text x="370" y="158" textAnchor="middle" fontSize="11" fontWeight="700" fill="#3730A3">東北</text><text x="370" y="172" textAnchor="middle" fontSize="10" fill="#4338CA">42名</text></g>
-            <g style={{ cursor: "pointer" }}><ellipse cx="330" cy="270" rx="65" ry="60" fill="#818CF8" stroke="#4F46E5" strokeWidth="2" opacity="0.9" /><text x="330" y="268" textAnchor="middle" fontSize="12" fontWeight="700" fill="#fff">関東</text><text x="330" y="282" textAnchor="middle" fontSize="11" fill="#EEF2FF">148名</text></g>
-            <g style={{ cursor: "pointer" }}><ellipse cx="220" cy="290" rx="55" ry="50" fill="#FCA5A5" stroke="#DC2626" strokeWidth="1.5" opacity="0.8" /><text x="220" y="288" textAnchor="middle" fontSize="11" fontWeight="700" fill="#7F1D1D">中部</text><text x="220" y="302" textAnchor="middle" fontSize="10" fill="#991B1B">89名</text></g>
-            <g style={{ cursor: "pointer" }}><ellipse cx="200" cy="370" rx="55" ry="45" fill="#FCD34D" stroke="#D97706" strokeWidth="1.5" opacity="0.8" /><text x="200" y="368" textAnchor="middle" fontSize="11" fontWeight="700" fill="#78350F">近畿</text><text x="200" y="382" textAnchor="middle" fontSize="10" fill="#92400E">112名</text></g>
-            <g style={{ cursor: "pointer" }}><ellipse cx="130" cy="370" rx="40" ry="30" fill="#6EE7B7" stroke="#059669" strokeWidth="1.5" opacity="0.8" /><text x="130" y="368" textAnchor="middle" fontSize="10" fontWeight="700" fill="#064E3B">中国</text><text x="130" y="380" textAnchor="middle" fontSize="9" fill="#065F46">38名</text></g>
-            <g style={{ cursor: "pointer" }}><ellipse cx="175" cy="430" rx="35" ry="22" fill="#93C5FD" stroke="#2563EB" strokeWidth="1.5" opacity="0.8" /><text x="175" y="428" textAnchor="middle" fontSize="10" fontWeight="700" fill="#1E3A8A">四国</text><text x="175" y="440" textAnchor="middle" fontSize="9" fill="#1E40AF">24名</text></g>
-            <g style={{ cursor: "pointer" }}><ellipse cx="110" cy="460" rx="60" ry="50" fill="#F9A8D4" stroke="#DB2777" strokeWidth="1.5" opacity="0.8" /><text x="110" y="458" textAnchor="middle" fontSize="11" fontWeight="700" fill="#831843">九州</text><text x="110" y="472" textAnchor="middle" fontSize="10" fill="#9D174D">82名</text></g>
-            <g style={{ cursor: "pointer" }}><ellipse cx="60" cy="555" rx="28" ry="18" fill="#C4B5FD" stroke="#7C3AED" strokeWidth="1.5" opacity="0.8" /><text x="60" y="553" textAnchor="middle" fontSize="9" fontWeight="700" fill="#4C1D95">沖縄</text><text x="60" y="564" textAnchor="middle" fontSize="8" fill="#5B21B6">8名</text></g>
+
+      {/* 右：地図＋サイドバー */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 240px", background: "#F8FAFF" }}>
+        {/* 地図 */}
+        <div style={{ padding: "16px", display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ fontSize: 13, color: "#64748B" }}>選挙区マップ — クリックで絞り込み</span>
+            <div style={{ display: "flex", gap: 10 }}>
+              {[["#EEEDFE","関東"],["#FAEEDA","中部"],["#FAECE7","近畿"],["#FBEAF0","九州"]].map(([c,l]) => (
+                <div key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748B" }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 2, background: c, border: "1px solid #ddd" }} />{l}
+                </div>
+              ))}
+            </div>
+          </div>
+          <svg viewBox="0 0 560 500" style={{ width: "100%" }} xmlns="http://www.w3.org/2000/svg">
+            {[
+              [390,10,160,80,"北海道","#E6F1FB","#B5D4F4"],
+              [400,102,46,24,"青森","#EAF3DE","#C0DD97"],[400,128,46,24,"岩手","#EAF3DE","#C0DD97"],
+              [352,102,46,24,"秋田","#EAF3DE","#C0DD97"],[352,128,46,24,"山形","#EAF3DE","#C0DD97"],
+              [400,154,46,24,"宮城","#EAF3DE","#C0DD97"],[352,154,46,24,"福島","#EAF3DE","#C0DD97"],
+              [304,180,46,24,"栃木","#EEEDFE","#AFA9EC"],[352,180,46,24,"茨城","#EEEDFE","#AFA9EC"],
+              [256,180,46,24,"群馬","#EEEDFE","#AFA9EC"],[304,206,46,24,"埼玉","#EEEDFE","#AFA9EC"],
+              [352,206,46,24,"千葉","#EEEDFE","#AFA9EC"],[352,232,46,24,"東京","#EEEDFE","#AFA9EC"],
+              [304,232,46,24,"神奈川","#EEEDFE","#AFA9EC"],[256,206,46,24,"山梨","#EEEDFE","#AFA9EC"],
+              [160,206,46,24,"富山","#FAEEDA","#FAC775"],[208,206,46,24,"長野","#FAEEDA","#FAC775"],
+              [112,206,46,24,"石川","#FAEEDA","#FAC775"],[112,180,46,24,"福井","#FAEEDA","#FAC775"],
+              [160,232,46,24,"岐阜","#FAEEDA","#FAC775"],[208,232,46,24,"静岡","#FAEEDA","#FAC775"],
+              [160,258,46,24,"愛知","#FAEEDA","#FAC775"],[208,258,46,24,"三重","#FAEEDA","#FAC775"],
+              [112,232,46,24,"新潟","#FAEEDA","#FAC775"],
+              [64,258,46,24,"京都","#FAECE7","#F5C4B3"],[112,258,46,24,"滋賀","#FAECE7","#F5C4B3"],
+              [64,284,46,24,"大阪","#FAECE7","#F5C4B3"],[16,284,46,24,"兵庫","#FAECE7","#F5C4B3"],
+              [112,284,46,24,"奈良","#FAECE7","#F5C4B3"],[64,310,46,24,"和歌山","#FAECE7","#F5C4B3"],
+              [16,258,46,24,"鳥取","#EAF3DE","#C0DD97"],[16,310,46,24,"島根","#EAF3DE","#C0DD97"],
+              [64,336,46,24,"岡山","#EAF3DE","#C0DD97"],[16,336,46,24,"広島","#EAF3DE","#C0DD97"],
+              [16,362,46,24,"山口","#EAF3DE","#C0DD97"],
+              [112,336,46,24,"徳島","#B5D4F4","#85B7EB"],[112,362,46,24,"香川","#B5D4F4","#85B7EB"],
+              [64,362,46,24,"愛媛","#B5D4F4","#85B7EB"],[112,388,46,24,"高知","#B5D4F4","#85B7EB"],
+              [16,388,46,24,"福岡","#FBEAF0","#F4C0D1"],[64,388,46,24,"大分","#FBEAF0","#F4C0D1"],
+              [16,414,46,24,"佐賀","#FBEAF0","#F4C0D1"],[64,414,46,24,"熊本","#FBEAF0","#F4C0D1"],
+              [16,440,46,24,"長崎","#FBEAF0","#F4C0D1"],[64,440,46,24,"宮崎","#FBEAF0","#F4C0D1"],
+              [40,466,46,24,"鹿児島","#FBEAF0","#F4C0D1"],
+              [160,466,56,24,"沖縄","#E1F5EE","#9FE1CB"],
+            ].map(([x,y,w,h,name,fill,stroke]) => (
+              <g key={name} style={{ cursor: "pointer" }} onClick={() => setSearch(name)}>
+                <rect x={x} y={y} width={w} height={h} rx="3" fill={fill} stroke={stroke} strokeWidth="0.5" />
+                <text x={x+w/2} y={y+h/2+4} textAnchor="middle" fontSize="9.5" fill="#475569">{name}</text>
+              </g>
+            ))}
           </svg>
         </div>
-        <div style={{ position: "absolute", bottom: 24, right: 24, background: "#fff", border: "2px solid #F1F5F9", borderRadius: 12, padding: "10px 14px" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", marginBottom: 6 }}>議員数</div>
-          {[["#818CF8","100名以上"],["#FCA5A5","50〜99名"],["#FCD34D","10〜49名"],["#C7D2FE","〜9名"]].map(([c,l]) => (
-            <div key={l} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3, fontSize: 11, color: "#64748B" }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />{l}
-            </div>
-          ))}
+
+        {/* サイドバー */}
+        <div style={{ borderLeft: "1px solid #E2E8F0", padding: "14px 12px", background: "#fff", overflowY: "auto" }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#1E293B", marginBottom: 10, paddingBottom: 8, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 14 }}>📈</span>人気の議員
+            <span style={{ fontSize: 10, color: "#94A3B8", fontWeight: 400 }}>過去24時間</span>
+          </div>
+          {(loading ? [] : politicians.slice(0,5)).map((p, i) => {
+            const pn = pName(p);
+            const pbg = PR[pn] || "#F1F5F9";
+            const ptx = PT[pn] || "#64748B";
+            return (
+              <div key={p.id} onClick={() => onSelect(p)} style={{ display: "flex", gap: 8, padding: "7px 0", borderBottom: "1px solid #F8FAFC", cursor: "pointer" }}>
+                <span style={{ fontSize: 12, color: "#94A3B8", width: 14 }}>{i+1}</span>
+                <PoliticianAvatar politician={{ ...p, party: pn }} size={30} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#1E293B", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                    {p.name}
+                    <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 20, background: pbg, color: ptx }}>{pn}</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: "#94A3B8" }}>{p.house}</div>
+                </div>
+              </div>
+            );
+          })}
+
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#1E293B", margin: "14px 0 10px", paddingBottom: 8, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 14 }}>💬</span>最近の口コミ
+          </div>
+          <div style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", padding: "12px 0" }}>
+            口コミはまだありません。<br/>最初の投稿者になりましょう！
+          </div>
         </div>
       </div>
     </div>
@@ -631,14 +738,31 @@ function DetailPanel({ politician: p, onClose }) {
 // メインApp
 // ============================================================
 export default function App() {
-  const [page, setPage] = useState("ranking");
+  const [page, setPage] = useState("map");
   const [selectedPol, setSelectedPol] = useState(null);
+  const [stats, setStats] = useState({ total: 84, shugiin: 54, sangiin: 30, reviews: 0 });
+
+  useEffect(() => {
+    async function loadStats() {
+      const all = await supabaseFetch("politicians", { select: "id,house", limit: 1000 });
+      const reviews = await supabaseFetch("reviews", { select: "id", limit: 1 });
+      if (all?.length) {
+        setStats({
+          total: all.length,
+          shugiin: all.filter(p => p.house === "衆議院").length,
+          sangiin: all.filter(p => p.house === "参議院").length,
+          reviews: 0,
+        });
+      }
+    }
+    loadStats();
+  }, []);
 
   return (
     <div style={{ fontFamily: "'Hiragino Sans','Yu Gothic',sans-serif", background: "#F8FAFF", minHeight: "100vh" }}>
-      <Header page={page} setPage={setPage} />
-      {page === "ranking" && <RankingPage onSelect={setSelectedPol} />}
+      <Header page={page} setPage={setPage} stats={stats} />
       {page === "map" && <MapPage onSelect={setSelectedPol} />}
+      {page === "ranking" && <RankingPage onSelect={setSelectedPol} />}
       {page === "news" && <NewsPage onSelect={setSelectedPol} />}
       {page === "kokkai" && <KokkaiPage onSelect={setSelectedPol} />}
       {page === "schedule" && <SchedulePage />}
