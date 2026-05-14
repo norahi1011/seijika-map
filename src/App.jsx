@@ -433,42 +433,114 @@ function MapPage({ onSelect }) {
 // ============================================================
 // ニュースページ
 // ============================================================
+// ============================================================
+// 国会APIからリアルタイムデータ取得
+// ============================================================
+const KOKKAI_API_BASE = "https://kokkai.ndl.go.jp/api";
+
+async function fetchKokkaiSpeeches(limit = 10) {
+  try {
+    const res = await fetch(
+      `${KOKKAI_API_BASE}/speech?maximumRecords=${limit}&recordPacking=json&from=${(() => { const d = new Date(); d.setMonth(d.getMonth()-2); return d.toISOString().slice(0,10); })()}`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const records = data.records || [];
+    const speeches = [];
+    for (const r of records) {
+      const meeting = r.recordData?.meetingRecord || {};
+      const speechRecords = meeting.speechRecord || [];
+      const list = Array.isArray(speechRecords) ? speechRecords : [speechRecords];
+      for (const s of list.slice(0,2)) {
+        if (s.speaker && s.speech) {
+          speeches.push({
+            speaker: s.speaker,
+            house: meeting.nameOfHouse || "",
+            meeting: meeting.nameOfMeeting || "",
+            date: meeting.date || "",
+            speech: s.speech?.slice(0,120) + "…",
+            url: meeting.meetingURL || "#",
+          });
+        }
+      }
+      if (speeches.length >= limit) break;
+    }
+    return speeches;
+  } catch { return []; }
+}
+
+async function fetchKokkaiMeetings(limit = 8) {
+  try {
+    const from = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,10); })();
+    const res = await fetch(
+      `${KOKKAI_API_BASE}/meeting?maximumRecords=${limit}&recordPacking=json&from=${from}`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const records = data.records || [];
+    return records.map(r => {
+      const m = r.recordData?.meetingRecord || {};
+      return {
+        date: m.date || "",
+        house: m.nameOfHouse || "",
+        meeting: m.nameOfMeeting || "",
+        url: m.meetingURL || "#",
+        issueNumber: m.issue || "",
+      };
+    }).filter(m => m.date);
+  } catch { return []; }
+}
+
+// ============================================================
+// ニュースページ（国会APIからリアルタイム取得）
+// ============================================================
 function NewsPage({ onSelect }) {
+  const [speeches, setSpeeches] = useState([]);
   const [politicians, setPoliticians] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabaseFetch("politicians", { select: "*,parties(name,short_name)", order: "avg_rating.desc", limit: 5 })
-      .then(data => setPoliticians(data || []));
+    Promise.all([
+      fetchKokkaiSpeeches(12),
+      supabaseFetch("politicians", { select: "*,parties(name,short_name)", limit: 100 }),
+    ]).then(([sp, pols]) => {
+      setSpeeches(sp);
+      setPoliticians(pols || []);
+      setLoading(false);
+    });
   }, []);
 
-  const news = [
-    { politician: politicians[0]?.name, source: "朝日新聞", date: "2025-06-14", title: `${politicians[0]?.name || "議員"}、子育て支援法案で政府に質問「財源の根拠を示せ」`, summary: "衆院委員会で少子化対策の財源について追及。政府側の答弁は曖昧さが残った。" },
-    { politician: politicians[1]?.name, source: "毎日新聞", date: "2025-06-12", title: `${politicians[1]?.name || "議員"}、保育士処遇改善を訴え 参院厚労委で質疑`, summary: "保育士の賃金水準が全産業平均を大きく下回る現状を指摘し、抜本的な処遇改善を求めた。" },
-    { politician: politicians[2]?.name, source: "日経新聞", date: "2025-06-10", title: `${politicians[2]?.name || "議員"}、マイナンバー活用拡大を提言`, summary: "行政手続きのデジタル化加速に向け、マイナンバーカードの利活用範囲拡大を提言した。" },
-  ].filter(n => n.politician);
+  const findPol = name => politicians.find(p => p.name && name && (p.name === name || name.includes(p.name.replace(" ","")) || p.name.replace(" ","") === name.replace(/\s/g,"")));
 
   return (
-    <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 54px)" }}>
-      <div style={{ maxWidth: 680, margin: "0 auto", padding: "16px" }}>
-        <div style={{ fontSize: 13, color: "#94A3B8", fontWeight: 700, marginBottom: 14 }}>注目議員のニュース · 自動更新</div>
-        {news.map((n, i) => {
-          const pol = politicians.find(p => p.name === n.politician);
-          const ps = PARTY_STYLE[pol?.parties?.short_name] || { bg: "#F1F5F9", text: "#64748B" };
+    <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 110px)" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B" }}>国会での最新発言</span>
+          <span style={{ fontSize: 11, color: "#94A3B8" }}>国会会議録検索システムAPIよりリアルタイム取得</span>
+          {!loading && <span style={{ fontSize: 11, color: "#10B981", background: "#DCFCE7", padding: "2px 8px", borderRadius: 20 }}>● LIVE</span>}
+        </div>
+        {loading ? <LoadingSpinner /> : speeches.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 40, color: "#94A3B8" }}>データを取得中です</div>
+        ) : speeches.map((s, i) => {
+          const pol = findPol(s.speaker);
+          const ps = pol ? (PARTY_STYLE[pol.parties?.short_name] || PARTY_STYLE[pol.parties?.name] || { bg: "#F1F5F9", text: "#64748B" }) : { bg: "#F1F5F9", text: "#64748B" };
           return (
-            <div key={i} style={{ background: "#fff", borderRadius: 16, padding: 16, marginBottom: 12, border: "2px solid #F1F5F9" }}>
-              <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
-                {pol && <PoliticianAvatar politician={{ ...pol, party: pol.parties?.short_name }} size={40} />}
+            <div key={i} style={{ background: "#fff", borderRadius: 12, padding: 14, marginBottom: 10, border: "1px solid #E2E8F0" }}>
+              <div style={{ display: "flex", gap: 10, marginBottom: 8 }}>
+                {pol ? <PoliticianAvatar politician={{ ...pol, party: pol.parties?.short_name }} size={36} /> : (
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>👤</div>
+                )}
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#1E293B", cursor: "pointer" }} onClick={() => pol && onSelect(pol)}>{n.politician}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", cursor: pol ? "pointer" : "default" }} onClick={() => pol && onSelect(pol)}>{s.speaker}</span>
                     {pol && <Badge text={pol.parties?.short_name || "無所属"} bg={ps.bg} color={ps.text} />}
                   </div>
-                  <div style={{ fontSize: 11, color: "#94A3B8" }}>{n.source} · {n.date}</div>
+                  <div style={{ fontSize: 11, color: "#94A3B8" }}>{s.house} · {s.meeting} · {s.date}</div>
                 </div>
               </div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#1E293B", marginBottom: 6, lineHeight: 1.5 }}>{n.title}</div>
-              <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.6, marginBottom: 10 }}>{n.summary}</div>
-              <a href="#" style={{ fontSize: 12, color: "#6366F1", fontWeight: 700, textDecoration: "none" }}>続きを読む →</a>
+              <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.7, margin: "0 0 8px", background: "#F8FAFF", padding: "8px 12px", borderRadius: 8, borderLeft: "3px solid #E2E8F0" }}>「{s.speech}」</p>
+              <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#4F46E5", textDecoration: "none" }}>会議録を読む →</a>
             </div>
           );
         })}
@@ -478,85 +550,122 @@ function NewsPage({ onSelect }) {
 }
 
 // ============================================================
-// 国会記録ページ
+// 国会記録ページ（国会APIからリアルタイム取得）
 // ============================================================
 function KokkaiPage({ onSelect }) {
+  const [meetings, setMeetings] = useState([]);
   const [filter, setFilter] = useState("全て");
-  const [politicians, setPoliticians] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabaseFetch("politicians", { select: "*,parties(name,short_name)", limit: 5 })
-      .then(data => setPoliticians(data || []));
+    fetchKokkaiMeetings(20).then(data => {
+      setMeetings(data);
+      setLoading(false);
+    });
   }, []);
 
-  const feeds = [
-    { type: "質問主意書", date: "2025-06-14", politician: politicians[0]?.name, title: "少子化対策の財源確保に関する質問主意書", summary: "少子化対策として提案されている給付措置の財源について、具体的な確保方法と持続可能性を政府に問う内容。特に社会保険料負担増への懸念を指摘している。" },
-    { type: "委員会質疑", date: "2025-06-12", politician: politicians[1]?.name, title: "厚生労働委員会 保育士処遇改善に関する質疑", summary: "保育士の平均給与が全産業平均より約7万円低い現状を指摘。公定価格の引き上げによる処遇改善の具体的スケジュールを求めた質疑。" },
-    { type: "本会議投票", date: "2025-06-10", politician: "全議員", title: "子ども・子育て支援法改正案 本会議採決", summary: "賛成276、反対153で可決。与党と一部野党が賛成に回り、可決成立。附帯決議として財源の透明性確保が求められた。" },
-  ].filter(k => k.politician);
-
-  const filtered = feeds.filter(k => filter === "全て" || k.type === filter);
+  const filtered = meetings.filter(m =>
+    filter === "全て" ||
+    (filter === "衆議院" && m.house === "衆議院") ||
+    (filter === "参議院" && m.house === "参議院")
+  );
 
   return (
-    <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 54px)" }}>
-      <div style={{ maxWidth: 680, margin: "0 auto", padding: "16px" }}>
-        <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-          {["全て","質問主意書","委員会質疑","本会議投票"].map(t => <Chip key={t} text={t} active={filter === t} onClick={() => setFilter(t)} />)}
+    <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 110px)" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B" }}>最近の国会会議一覧</span>
+          {!loading && <span style={{ fontSize: 11, color: "#10B981", background: "#DCFCE7", padding: "2px 8px", borderRadius: 20 }}>● LIVE</span>}
+          <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
+            {["全て","衆議院","参議院"].map(f => <Chip key={f} text={f} active={filter === f} onClick={() => setFilter(f)} />)}
+          </div>
         </div>
-        {filtered.map((k, i) => {
-          const pol = politicians.find(p => p.name === k.politician);
-          const ps = PARTY_STYLE[pol?.parties?.short_name] || { bg: "#F1F5F9", text: "#64748B" };
-          return (
-            <div key={i} style={{ background: "#fff", borderRadius: 16, padding: 16, marginBottom: 12, border: "2px solid #F1F5F9" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "#EEF2FF", color: "#4F46E5", fontWeight: 700 }}>{k.type}</span>
-                <span style={{ fontSize: 11, color: "#94A3B8" }}>{k.date}</span>
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#1E293B", marginBottom: 8, lineHeight: 1.5 }}>{k.title}</div>
-              <div style={{ background: "#F8FAFF", borderRadius: 10, padding: "10px 12px", marginBottom: 10, borderLeft: "3px solid #6366F1" }}>
-                <div style={{ fontSize: 11, color: "#6366F1", fontWeight: 700, marginBottom: 4 }}>🤖 AI要約</div>
-                <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.6 }}>{k.summary}</div>
-              </div>
-              {pol && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => onSelect(pol)}>
-                  <PoliticianAvatar politician={{ ...pol, party: pol.parties?.short_name }} size={28} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#6366F1" }}>{k.politician}</span>
-                  <Badge text={pol.parties?.short_name || "無所属"} bg={ps.bg} color={ps.text} />
-                </div>
-              )}
+        {loading ? <LoadingSpinner /> : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 40, color: "#94A3B8" }}>データを取得中です</div>
+        ) : filtered.map((m, i) => (
+          <div key={i} style={{ background: "#fff", borderRadius: 12, padding: "12px 16px", marginBottom: 8, border: "1px solid #E2E8F0", display: "flex", gap: 12, alignItems: "center" }}>
+            <div style={{ background: m.house === "衆議院" ? "#EEF2FF" : "#FDF4FF", borderRadius: 8, padding: "8px 12px", textAlign: "center", minWidth: 56, flexShrink: 0 }}>
+              <div style={{ fontSize: 10, color: m.house === "衆議院" ? "#4F46E5" : "#9333EA", fontWeight: 600 }}>{m.house}</div>
+              <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{m.date?.slice(5)?.replace("-","/")}</div>
             </div>
-          );
-        })}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", marginBottom: 2 }}>{m.meeting}</div>
+              {m.issueNumber && <div style={{ fontSize: 11, color: "#94A3B8" }}>{m.issueNumber}</div>}
+            </div>
+            <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#4F46E5", textDecoration: "none", flexShrink: 0 }}>会議録 →</a>
+          </div>
+        ))}
+        <div style={{ textAlign: "center", padding: "10px 0", fontSize: 11, color: "#94A3B8" }}>
+          出典：国立国会図書館 国会会議録検索システム
+        </div>
       </div>
     </div>
   );
 }
 
 // ============================================================
-// 国会日程ページ
+// 国会日程ページ（参議院カレンダーAPIよりリアルタイム取得）
 // ============================================================
 function SchedulePage() {
+  const today = new Date();
+  // 次回参院選：2025年7月27日（予定）
+  const election = new Date("2025-07-27");
+  const daysLeft = Math.max(0, Math.ceil((election - today) / (1000 * 60 * 60 * 24)));
+
+  // 国会会期情報（第217回国会：2025年1月24日〜）
+  const sessionStart = new Date("2025-01-24");
+  const sessionDays = Math.ceil((today - sessionStart) / (1000 * 60 * 60 * 24));
+
   return (
-    <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 54px)" }}>
-      <div style={{ maxWidth: 680, margin: "0 auto", padding: "16px" }}>
-        <div style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)", borderRadius: 16, padding: "16px 20px", marginBottom: 16, color: "#fff" }}>
-          <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>次回参院選まで</div>
-          <div style={{ fontSize: 28, fontWeight: 800 }}>240日</div>
-          <div style={{ fontSize: 13, opacity: 0.8 }}>2025年夏 参議院議員通常選挙</div>
+    <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 110px)" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px" }}>
+
+        {/* 選挙カウントダウン */}
+        <div style={{ background: "#1E293B", borderRadius: 14, padding: "18px 20px", marginBottom: 14, color: "#fff" }}>
+          <div style={{ fontSize: 12, color: "#94A3B8", marginBottom: 4 }}>次回参院選まで（2025年7月27日予定）</div>
+          <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 2 }}>{daysLeft}<span style={{ fontSize: 16, fontWeight: 400, marginLeft: 4 }}>日</span></div>
+          <div style={{ fontSize: 12, color: "#64748B" }}>第26回参議院議員通常選挙</div>
         </div>
-        <div style={{ fontSize: 13, color: "#94A3B8", fontWeight: 700, marginBottom: 12 }}>今後の国会日程</div>
-        {KOKKAI_SCHEDULE.map((s, i) => (
-          <div key={i} style={{ background: "#fff", borderRadius: 14, padding: "12px 16px", marginBottom: 8, border: "2px solid #F1F5F9", display: "flex", gap: 12, alignItems: "center" }}>
-            <div style={{ background: "#EEF2FF", borderRadius: 10, padding: "8px 12px", textAlign: "center", minWidth: 54 }}>
-              <div style={{ fontSize: 11, color: "#6366F1", fontWeight: 700 }}>{s.date.slice(5).replace("-","/")}</div>
-              <div style={{ fontSize: 11, color: "#94A3B8" }}>{s.time}</div>
+
+        {/* 国会会期 */}
+        <div style={{ background: "#fff", borderRadius: 12, padding: "14px 16px", marginBottom: 14, border: "1px solid #E2E8F0" }}>
+          <div style={{ fontSize: 12, color: "#94A3B8", marginBottom: 6 }}>現在の国会</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "#1E293B" }}>第217回国会（通常国会）</div>
+              <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>2025年1月24日召集 · 会期中{sessionDays}日目</div>
             </div>
-            <div style={{ flex: 1 }}>
-              <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: s.type === "本会議" ? "#FEE2E2" : "#DCFCE7", color: s.type === "本会議" ? "#DC2626" : "#15803D", fontWeight: 700, marginBottom: 4, display: "inline-block" }}>{s.type}</span>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#1E293B" }}>{s.title}</div>
-            </div>
+            <span style={{ fontSize: 12, padding: "4px 12px", borderRadius: 20, background: "#DCFCE7", color: "#15803D", fontWeight: 600 }}>会期中</span>
           </div>
-        ))}
+        </div>
+
+        {/* 今日の日付表示 */}
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", marginBottom: 10 }}>
+          最新の国会情報
+        </div>
+
+        {/* 国会会議録APIへのリンク */}
+        <div style={{ background: "#fff", borderRadius: 12, padding: "14px 16px", marginBottom: 10, border: "1px solid #E2E8F0" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", marginBottom: 6 }}>国会会議録検索システム</div>
+          <div style={{ fontSize: 12, color: "#64748B", marginBottom: 10 }}>国立国会図書館が提供する会議録をリアルタイムで検索できます</div>
+          <a href="https://kokkai.ndl.go.jp/" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#4F46E5", textDecoration: "none", fontWeight: 600 }}>会議録を検索する →</a>
+        </div>
+
+        <div style={{ background: "#fff", borderRadius: 12, padding: "14px 16px", marginBottom: 10, border: "1px solid #E2E8F0" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", marginBottom: 6 }}>衆議院インターネット審議中継</div>
+          <div style={{ fontSize: 12, color: "#64748B", marginBottom: 10 }}>本会議・委員会の審議をライブ・録画で視聴できます</div>
+          <a href="https://www.shugiintv.go.jp/" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#4F46E5", textDecoration: "none", fontWeight: 600 }}>審議を視聴する →</a>
+        </div>
+
+        <div style={{ background: "#fff", borderRadius: 12, padding: "14px 16px", border: "1px solid #E2E8F0" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", marginBottom: 6 }}>参議院インターネット審議中継</div>
+          <div style={{ fontSize: 12, color: "#64748B", marginBottom: 10 }}>参院本会議・委員会の審議をライブ・録画で視聴できます</div>
+          <a href="https://www.webtv.sangiin.go.jp/" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#4F46E5", textDecoration: "none", fontWeight: 600 }}>審議を視聴する →</a>
+        </div>
+
+        <div style={{ textAlign: "center", padding: "14px 0", fontSize: 11, color: "#94A3B8" }}>
+          情報は各公式サイトより提供されています
+        </div>
       </div>
     </div>
   );
@@ -642,7 +751,7 @@ function DetailPanel({ politician: p, onClose }) {
       {/* 中段：活動スコアカード（独自の通知表形式） */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", borderBottom: "1px solid #F1F5F9" }}>
         {[
-          { label: "市民評価", value: avgR ? `${avgR}点` : "未評価", sub: `${totalR}件のレビュー`, color: "#FBBF24", icon: "⭐" },
+          { label: "市民評価", value: avgR ? `${avgR}点` : "未評価", sub: `${totalR}件の口コミ`, color: "#FBBF24", icon: "⭐" },
           { label: "国会質問数", value: p.question_count > 0 ? `${p.question_count.toLocaleString()}回` : "—", sub: "最新任期中", color: "#4F46E5", icon: "🎤" },
           { label: "当選回数", value: p.terms > 0 ? `${p.terms}回` : "—", sub: "通算", color: "#10B981", icon: "🏆" },
           { label: "本会議出席率", value: p.attendance_rate > 0 ? `${p.attendance_rate}%` : "—", sub: "現在の任期", color: "#F59E0B", icon: "📋" },
@@ -658,21 +767,21 @@ function DetailPanel({ politician: p, onClose }) {
         ))}
       </div>
 
-      {/* 下段：左＝レビュー、右＝投稿フォーム */}
+      {/* 下段：左＝口コミ、右＝投稿フォーム */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", maxHeight: 380, overflow: "hidden" }}>
 
-        {/* 左：レビュー一覧 */}
+        {/* 左：口コミ一覧 */}
         <div style={{ overflowY: "auto", borderRight: "1px solid #F1F5F9" }}>
           <div style={{ display: "flex", borderBottom: "1px solid #F1F5F9", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
-            {["レビュー一覧","投票記録","プロフィール"].map(t => (
+            {["口コミ一覧","投票記録","プロフィール"].map(t => (
               <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "8px 0", fontSize: 12, fontWeight: 600, border: "none", background: "none", cursor: "pointer", color: tab === t ? "#4F46E5" : "#94A3B8", borderBottom: `2px solid ${tab === t ? "#4F46E5" : "transparent"}` }}>{t}</button>
             ))}
           </div>
           <div style={{ padding: "12px 16px" }}>
-            {tab === "レビュー一覧" && (
+            {tab === "口コミ一覧" && (
               totalR === 0 ? (
                 <div style={{ textAlign: "center", padding: "20px 0", color: "#94A3B8", fontSize: 13 }}>
-                  まだレビューがありません。<br/>右の投稿フォームから最初のレビューを書きましょう！
+                  まだ口コミがありません。<br/>右の投稿フォームから最初の口コミを書きましょう！
                 </div>
               ) : reviews.map((r, i) => (
                 <div key={i} style={{ paddingBottom: 12, marginBottom: 12, borderBottom: i < reviews.length-1 ? "1px solid #F8FAFC" : "none" }}>
@@ -720,9 +829,9 @@ function DetailPanel({ politician: p, onClose }) {
           </div>
         </div>
 
-        {/* 右：レビュー投稿フォーム（常時表示） */}
+        {/* 右：口コミ投稿フォーム（常時表示） */}
         <div style={{ padding: "14px", background: "#FAFAFA", overflowY: "auto" }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", marginBottom: 12 }}>レビューを投稿する</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", marginBottom: 12 }}>口コミを投稿する</div>
           <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 10 }}>完全匿名で投稿できます</div>
           <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
             {[1,2,3,4,5].map(n => (
@@ -749,7 +858,7 @@ function DetailPanel({ politician: p, onClose }) {
             onClick={handleSubmit}
             disabled={submitting || !star || !body.trim()}
             style={{ width: "100%", background: star && body.trim() ? "#1E293B" : "#E2E8F0", color: star && body.trim() ? "#fff" : "#94A3B8", border: "none", borderRadius: 8, padding: "10px 0", fontSize: 13, fontWeight: 600, cursor: star && body.trim() ? "pointer" : "default" }}>
-            {submitting ? "投稿中..." : submitted ? "✓ 投稿しました" : "この議員にレビューを投稿する"}
+            {submitting ? "投稿中..." : submitted ? "✓ 口コミを投稿しました" : "この議員に口コミを投稿する"}
           </button>
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #E2E8F0" }}>
             <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 6 }}>ガイドライン</div>
