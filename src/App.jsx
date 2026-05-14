@@ -131,8 +131,8 @@ function Header({ page, setPage, stats }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => setPage("map")}>
           <div style={{ width: 36, height: 36, borderRadius: 8, background: "#EEF2FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🗳️</div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#1E293B", lineHeight: 1.2 }}>政治家マップ</div>
-            <div style={{ fontSize: 11, color: "#94A3B8" }}>議員の活動記録と口コミを共有するプラットフォーム</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1E293B", lineHeight: 1.2 }}>政治家レビュー</div>
+            <div style={{ fontSize: 11, color: "#94A3B8" }}>議員の活動実績と口コミを共有するプラットフォーム</div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
@@ -606,129 +606,158 @@ function DetailPanel({ politician: p, onClose }) {
     setSubmitting(false);
   };
 
+  const totalR = reviews.length || 0;
+  const avgR = totalR > 0 ? (reviews.reduce((s, r) => s + r.rating, 0) / totalR).toFixed(1) : null;
+
+  // 活動スコア（通知表風 5段階）
+  const qScore = p.question_count > 0 ? Math.min(5, Math.ceil(p.question_count / 200)) : null;
+  const aScore = p.attendance_rate > 0 ? Math.min(5, Math.round(p.attendance_rate / 20)) : null;
+
   return (
-    <div style={{ background: "#fff", borderTop: "2px solid #F1F5F9" }}>
-      <div style={{ padding: "16px 20px", borderBottom: "2px solid #F1F5F9" }}>
-        <div style={{ display: "flex", gap: 14, marginBottom: 14 }}>
-          <PoliticianAvatar politician={{ ...p, party: partyName }} size={64} />
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 20, fontWeight: 800, color: "#1E293B" }}>{p.name}</span>
-              {p.name_kana && <span style={{ fontSize: 12, color: "#94A3B8" }}>（{p.name_kana}）</span>}
-              <Badge text={partyName} bg={ps.bg} color={ps.text} />
-            </div>
-            <div style={{ fontSize: 13, color: "#94A3B8", marginBottom: 8 }}>{p.house} · {p.district} · 当選{p.terms}回</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <Stars rating={p.avg_rating} size={18} />
-              <span style={{ fontSize: 22, fontWeight: 800, color: "#1E293B" }}>{p.avg_rating > 0 ? p.avg_rating : "未評価"}</span>
-              {p.review_count > 0 && <span style={{ fontSize: 13, color: "#94A3B8" }}>{p.review_count}件の口コミ</span>}
-            </div>
+    <div style={{ background: "#fff", borderTop: "1px solid #E2E8F0" }}>
+
+      {/* 上部：プロフィール帯 */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 20px", borderBottom: "1px solid #F1F5F9", background: "#FAFAFA" }}>
+        <PoliticianAvatar politician={{ ...p, party: partyName }} size={48} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 17, fontWeight: 700, color: "#1E293B" }}>{p.name}</span>
+            {p.name_kana && <span style={{ fontSize: 11, color: "#94A3B8" }}>{p.name_kana}</span>}
+            <Badge text={partyName} bg={ps.bg} color={ps.text} />
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "2px solid #E2E8F0", borderRadius: 10, padding: "4px 10px", cursor: "pointer", color: "#94A3B8", fontSize: 16, flexShrink: 0 }}>✕</button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {[p.house, p.district, p.terms > 0 ? `当選${p.terms}回` : null].filter(Boolean).map((v, i) => (
+              <span key={i} style={{ fontSize: 11, color: "#64748B" }}>{v}</span>
+            ))}
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)", color: "#fff", border: "none", borderRadius: 20, padding: "8px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }} onClick={() => setTab("口コミ")}>✍️ 口コミを書く</button>
-          <button onClick={() => setFollowing(!following)} style={{ background: "#fff", color: following ? "#6366F1" : "#64748B", border: `2px solid ${following ? "#6366F1" : "#E2E8F0"}`, borderRadius: 20, padding: "8px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-            {following ? "🔔 フォロー中" : "🔔 フォロー"}
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          <button onClick={() => setFollowing(!following)} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 6, border: `1px solid ${following ? "#4F46E5" : "#E2E8F0"}`, background: following ? "#EEF2FF" : "#fff", color: following ? "#4F46E5" : "#64748B", cursor: "pointer" }}>
+            {following ? "フォロー中" : "+ フォロー"}
           </button>
+          <button onClick={onClose} style={{ fontSize: 12, padding: "5px 10px", borderRadius: 6, border: "1px solid #E2E8F0", background: "none", color: "#94A3B8", cursor: "pointer" }}>閉じる</button>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", borderBottom: "2px solid #F1F5F9" }}>
+      {/* 中段：活動スコアカード（独自の通知表形式） */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", borderBottom: "1px solid #F1F5F9" }}>
         {[
-          { label: "質問回数", value: p.question_count > 0 ? `${p.question_count}回` : "—" },
-          { label: "出席率", value: p.attendance_rate > 0 ? `${p.attendance_rate}%` : "—" },
-          { label: "口コミ数", value: p.review_count > 0 ? `${p.review_count}件` : "0件" },
+          { label: "市民評価", value: avgR ? `${avgR}点` : "未評価", sub: `${totalR}件のレビュー`, color: "#FBBF24", icon: "⭐" },
+          { label: "国会質問数", value: p.question_count > 0 ? `${p.question_count.toLocaleString()}回` : "—", sub: "最新任期中", color: "#4F46E5", icon: "🎤" },
+          { label: "当選回数", value: p.terms > 0 ? `${p.terms}回` : "—", sub: "通算", color: "#10B981", icon: "🏆" },
+          { label: "本会議出席率", value: p.attendance_rate > 0 ? `${p.attendance_rate}%` : "—", sub: "現在の任期", color: "#F59E0B", icon: "📋" },
         ].map((s, i) => (
-          <div key={i} style={{ padding: "12px 16px", borderRight: i < 2 ? "1px solid #F1F5F9" : "none", textAlign: "center" }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#1E293B" }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: "flex", borderBottom: "2px solid #F1F5F9" }}>
-        {["口コミ","投票記録","経歴"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "11px 0", fontSize: 13, fontWeight: 700, border: "none", background: "none", cursor: "pointer", color: tab === t ? "#4F46E5" : "#94A3B8", borderBottom: `3px solid ${tab === t ? "#6366F1" : "transparent"}` }}>{t}</button>
-        ))}
-      </div>
-
-      <div style={{ padding: "16px 20px", maxHeight: 400, overflowY: "auto" }}>
-        {tab === "口コミ" && (
-          <>
-            <div style={{ background: "#F8FAFF", borderRadius: 14, padding: 14, marginBottom: 14, border: "2px solid #EEF2FF" }}>
-              <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8, color: "#1E293B" }}>口コミを投稿する</div>
-              <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-                {[1,2,3,4,5].map(n => (
-                  <span key={n} onMouseEnter={() => setHoverStar(n)} onMouseLeave={() => setHoverStar(0)} onClick={() => setStar(n)}
-                    style={{ fontSize: 28, cursor: "pointer", display: "inline-block", transition: "transform 0.1s", transform: n <= (hoverStar || star) ? "scale(1.2)" : "scale(1)", color: n <= (hoverStar || star) ? "#FBBF24" : "#E5E7EB" }}>★</span>
-                ))}
-                {star > 0 && <span style={{ fontSize: 12, color: "#6366F1", fontWeight: 700, alignSelf: "center", marginLeft: 6 }}>{["","最低","やや不満","普通","良い","最高"][star]}</span>}
-              </div>
-              <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="実際に感じたこと・経験を書いてください（500文字以内）" style={{ width: "100%", minHeight: 80, fontSize: 13, padding: 10, borderRadius: 10, border: "2px solid #E2E8F0", resize: "vertical", fontFamily: "inherit", outline: "none", boxSizing: "border-box", color: "#1E293B" }} />
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                <span style={{ fontSize: 12, color: "#94A3B8" }}>{body.length}/500</span>
-                <button onClick={handleSubmit} disabled={submitting} style={{ background: star && body.trim() ? "linear-gradient(135deg,#6366F1,#8B5CF6)" : "#E2E8F0", color: star && body.trim() ? "#fff" : "#94A3B8", border: "none", borderRadius: 20, padding: "8px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                  {submitting ? "投稿中..." : submitted ? "✓ 投稿完了！" : "投稿する"}
-                </button>
-              </div>
+          <div key={i} style={{ padding: "12px 14px", borderRight: i < 3 ? "1px solid #F1F5F9" : "none", background: i === 0 ? "#FFFBEB" : "#fff" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+              <span style={{ fontSize: 14 }}>{s.icon}</span>
+              <span style={{ fontSize: 10, color: "#94A3B8" }}>{s.label}</span>
             </div>
-            {reviews.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 20, color: "#94A3B8", fontSize: 13 }}>まだ口コミがありません。最初の口コミを投稿しましょう！</div>
-            ) : reviews.map((r, i) => (
-              <div key={i} style={{ background: "#fff", borderRadius: 14, padding: 14, marginBottom: 10, border: "2px solid #F1F5F9" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>👤</div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#1E293B" }}>{r.is_anonymous ? "匿名ユーザー" : "ユーザー"}</div>
-                      <Stars rating={r.rating} size={12} />
-                    </div>
-                  </div>
-                  <span style={{ fontSize: 12, color: "#CBD5E1" }}>{r.created_at ? new Date(r.created_at).toLocaleDateString("ja-JP") : ""}</span>
-                </div>
-                <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.7, margin: 0 }}>{r.body}</p>
-              </div>
-            ))}
-          </>
-        )}
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#1E293B" }}>{s.value}</div>
+            <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 1 }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
 
-        {tab === "投票記録" && (
-          <>
-            <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 700, marginBottom: 10 }}>投票記録</div>
-            {votes.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 20, color: "#94A3B8", fontSize: 13 }}>投票記録データを準備中です</div>
-            ) : votes.map((v, i) => (
-              <div key={i} style={{ background: "#fff", borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: "2px solid #F1F5F9" }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: VOTE_STYLE[v.result]?.bg, color: VOTE_STYLE[v.result]?.text, fontWeight: 700, flexShrink: 0 }}>{v.result}</span>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1E293B", lineHeight: 1.5 }}>{v.bill_name}</div>
-                    <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>{v.voted_at}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </>
-        )}
+      {/* 下段：左＝レビュー、右＝投稿フォーム */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", maxHeight: 380, overflow: "hidden" }}>
 
-        {tab === "経歴" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[
-              { icon: "🏛️", label: "所属", value: partyName },
-              { icon: "📍", label: "選挙区", value: p.district || "—" },
-              { icon: "🏠", label: "院", value: p.house || "—" },
-              { icon: "🔢", label: "当選回数", value: p.terms ? `${p.terms}期` : "—" },
-              { icon: "🎤", label: "質問回数", value: p.question_count > 0 ? `${p.question_count}回` : "—" },
-              { icon: "📋", label: "出席率", value: p.attendance_rate > 0 ? `${p.attendance_rate}%` : "—" },
-            ].map(row => (
-              <div key={row.label} style={{ background: "#F8FAFF", borderRadius: 12, padding: "10px 14px" }}>
-                <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 4 }}>{row.icon} {row.label}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#1E293B" }}>{row.value}</div>
-              </div>
+        {/* 左：レビュー一覧 */}
+        <div style={{ overflowY: "auto", borderRight: "1px solid #F1F5F9" }}>
+          <div style={{ display: "flex", borderBottom: "1px solid #F1F5F9", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
+            {["レビュー一覧","投票記録","プロフィール"].map(t => (
+              <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "8px 0", fontSize: 12, fontWeight: 600, border: "none", background: "none", cursor: "pointer", color: tab === t ? "#4F46E5" : "#94A3B8", borderBottom: `2px solid ${tab === t ? "#4F46E5" : "transparent"}` }}>{t}</button>
             ))}
           </div>
-        )}
+          <div style={{ padding: "12px 16px" }}>
+            {tab === "レビュー一覧" && (
+              totalR === 0 ? (
+                <div style={{ textAlign: "center", padding: "20px 0", color: "#94A3B8", fontSize: 13 }}>
+                  まだレビューがありません。<br/>右の投稿フォームから最初のレビューを書きましょう！
+                </div>
+              ) : reviews.map((r, i) => (
+                <div key={i} style={{ paddingBottom: 12, marginBottom: 12, borderBottom: i < reviews.length-1 ? "1px solid #F8FAFC" : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Stars rating={r.rating} size={13} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B" }}>{r.rating}.0</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: "#CBD5E1" }}>{r.created_at ? new Date(r.created_at).toLocaleDateString("ja-JP") : ""} · 匿名</span>
+                  </div>
+                  <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.7, margin: 0 }}>{r.body}</p>
+                </div>
+              ))
+            )}
+            {tab === "投票記録" && (
+              votes.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "20px 0", color: "#94A3B8", fontSize: 13 }}>投票記録データを準備中です</div>
+              ) : votes.map((v, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, padding: "9px 0", borderBottom: "1px solid #F8FAFC", alignItems: "flex-start" }}>
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: VOTE_STYLE[v.result]?.bg, color: VOTE_STYLE[v.result]?.text, fontWeight: 600, flexShrink: 0 }}>{v.result}</span>
+                  <div>
+                    <div style={{ fontSize: 12, color: "#1E293B", lineHeight: 1.5 }}>{v.bill_name}</div>
+                    <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 1 }}>{v.voted_at}</div>
+                  </div>
+                </div>
+              ))
+            )}
+            {tab === "プロフィール" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                {[
+                  { label: "所属政党", value: partyName },
+                  { label: "院", value: p.house },
+                  { label: "選挙区", value: p.district || "—" },
+                  { label: "当選回数", value: p.terms ? `${p.terms}回` : "—" },
+                  { label: "国会質問数", value: p.question_count > 0 ? `${p.question_count.toLocaleString()}回（最新任期中）` : "—" },
+                  { label: "本会議出席率", value: p.attendance_rate > 0 ? `${p.attendance_rate}%（現在の任期）` : "—" },
+                ].map((row, i, arr) => (
+                  <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: i < arr.length-1 ? "1px solid #F8FAFC" : "none" }}>
+                    <span style={{ fontSize: 12, color: "#94A3B8" }}>{row.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B" }}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 右：レビュー投稿フォーム（常時表示） */}
+        <div style={{ padding: "14px", background: "#FAFAFA", overflowY: "auto" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", marginBottom: 12 }}>レビューを投稿する</div>
+          <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 10 }}>完全匿名で投稿できます</div>
+          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+            {[1,2,3,4,5].map(n => (
+              <span key={n}
+                onMouseEnter={() => setHoverStar(n)}
+                onMouseLeave={() => setHoverStar(0)}
+                onClick={() => setStar(n)}
+                style={{ fontSize: 26, cursor: "pointer", display: "inline-block", transition: "transform 0.1s", transform: n <= (hoverStar || star) ? "scale(1.15)" : "scale(1)", color: n <= (hoverStar || star) ? "#FBBF24" : "#E5E7EB" }}>★</span>
+            ))}
+          </div>
+          {star > 0 && (
+            <div style={{ fontSize: 12, color: "#4F46E5", fontWeight: 600, marginBottom: 8 }}>
+              {["","とても悪い","悪い","普通","良い","とても良い"][star]}
+            </div>
+          )}
+          <textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            placeholder={`${p.name}議員についてのご意見・評価をお書きください（500文字以内）`}
+            style={{ width: "100%", minHeight: 100, fontSize: 12, padding: 9, borderRadius: 8, border: "1px solid #E2E8F0", resize: "vertical", fontFamily: "inherit", outline: "none", boxSizing: "border-box", color: "#1E293B", background: "#fff", lineHeight: 1.6 }}
+          />
+          <div style={{ fontSize: 10, color: "#94A3B8", textAlign: "right", marginBottom: 8 }}>{body.length}/500</div>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !star || !body.trim()}
+            style={{ width: "100%", background: star && body.trim() ? "#1E293B" : "#E2E8F0", color: star && body.trim() ? "#fff" : "#94A3B8", border: "none", borderRadius: 8, padding: "10px 0", fontSize: 13, fontWeight: 600, cursor: star && body.trim() ? "pointer" : "default" }}>
+            {submitting ? "投稿中..." : submitted ? "✓ 投稿しました" : "この議員にレビューを投稿する"}
+          </button>
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #E2E8F0" }}>
+            <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 6 }}>ガイドライン</div>
+            {["実際の経験に基づいた投稿をお願いします","誹謗中傷・虚偽の情報は禁止です","個人情報の記載はお控えください"].map((g, i) => (
+              <div key={i} style={{ fontSize: 10, color: "#CBD5E1", marginBottom: 3 }}>· {g}</div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
