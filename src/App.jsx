@@ -434,15 +434,14 @@ function MapPage({ onSelect }) {
 // ニュースページ
 // ============================================================
 // ============================================================
-// 国会APIからリアルタイムデータ取得
+// 国会APIからリアルタイムデータ取得（Netlify Functions経由）
 // ============================================================
-const KOKKAI_API_BASE = "https://kokkai.ndl.go.jp/api";
+const KOKKAI_FN = "/.netlify/functions/kokkai";
 
 async function fetchKokkaiSpeeches(limit = 10) {
   try {
-    const res = await fetch(
-      `${KOKKAI_API_BASE}/speech?maximumRecords=${limit}&recordPacking=json&from=${(() => { const d = new Date(); d.setMonth(d.getMonth()-2); return d.toISOString().slice(0,10); })()}`
-    );
+    const from = (() => { const d = new Date(); d.setMonth(d.getMonth()-2); return d.toISOString().slice(0,10); })();
+    const res = await fetch(`${KOKKAI_FN}?type=speech&limit=${limit}&from=${from}`);
     if (!res.ok) return [];
     const data = await res.json();
     const records = data.records || [];
@@ -469,12 +468,10 @@ async function fetchKokkaiSpeeches(limit = 10) {
   } catch { return []; }
 }
 
-async function fetchKokkaiMeetings(limit = 8) {
+async function fetchKokkaiMeetings(limit = 20) {
   try {
     const from = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,10); })();
-    const res = await fetch(
-      `${KOKKAI_API_BASE}/meeting?maximumRecords=${limit}&recordPacking=json&from=${from}`
-    );
+    const res = await fetch(`${KOKKAI_FN}?type=meeting&limit=${limit}&from=${from}`);
     if (!res.ok) return [];
     const data = await res.json();
     const records = data.records || [];
