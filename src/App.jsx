@@ -438,33 +438,28 @@ function MapPage({ onSelect }) {
 // ============================================================
 const KOKKAI_FN = "/.netlify/functions/kokkai";
 
-async function fetchKokkaiSpeeches(limit = 10) {
+async function fetchKokkaiSpeeches(limit = 12) {
   try {
     const from = (() => { const d = new Date(); d.setMonth(d.getMonth()-2); return d.toISOString().slice(0,10); })();
     const res = await fetch(`${KOKKAI_FN}?type=speech&limit=${limit}&from=${from}`);
     if (!res.ok) return [];
     const data = await res.json();
-    const records = data.records || [];
-    const speeches = [];
-    for (const r of records) {
-      const meeting = r.recordData?.meetingRecord || {};
-      const speechRecords = meeting.speechRecord || [];
-      const list = Array.isArray(speechRecords) ? speechRecords : [speechRecords];
-      for (const s of list.slice(0,2)) {
-        if (s.speaker && s.speech) {
-          speeches.push({
-            speaker: s.speaker,
-            house: meeting.nameOfHouse || "",
-            meeting: meeting.nameOfMeeting || "",
-            date: meeting.date || "",
-            speech: s.speech?.slice(0,120) + "…",
-            url: meeting.meetingURL || "#",
-          });
-        }
-      }
-      if (speeches.length >= limit) break;
-    }
-    return speeches;
+
+    // APIレスポンス形式：speechRecord が直接ルートにある
+    const speechRecords = data.speechRecord || [];
+    const list = Array.isArray(speechRecords) ? speechRecords : [speechRecords];
+
+    return list
+      .filter(s => s.speaker && s.speech && s.speaker !== "会議録情報" && s.speakerYomi)
+      .slice(0, limit)
+      .map(s => ({
+        speaker: s.speaker,
+        house: s.nameOfHouse || "",
+        meeting: s.nameOfMeeting || "",
+        date: s.date || "",
+        speech: (s.speech || "").slice(0, 150) + "…",
+        url: s.meetingURL || "#",
+      }));
   } catch { return []; }
 }
 
@@ -474,17 +469,20 @@ async function fetchKokkaiMeetings(limit = 20) {
     const res = await fetch(`${KOKKAI_FN}?type=meeting&limit=${limit}&from=${from}`);
     if (!res.ok) return [];
     const data = await res.json();
-    const records = data.records || [];
-    return records.map(r => {
-      const m = r.recordData?.meetingRecord || {};
-      return {
+
+    // meetingRecord が直接ルートにある場合
+    const meetingRecords = data.meetingRecord || data.records || [];
+    const list = Array.isArray(meetingRecords) ? meetingRecords : [meetingRecords];
+
+    return list
+      .map(m => ({
         date: m.date || "",
         house: m.nameOfHouse || "",
         meeting: m.nameOfMeeting || "",
         url: m.meetingURL || "#",
         issueNumber: m.issue || "",
-      };
-    }).filter(m => m.date);
+      }))
+      .filter(m => m.date && m.meeting);
   } catch { return []; }
 }
 
