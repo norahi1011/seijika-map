@@ -36,18 +36,7 @@ async function supabaseInsert(table, data) {
   } catch { return false; }
 }
 
-// ============================================================
-// Wikipedia画像キャッシュ
-// Wikimedia Commons APIでライセンスを確認し、
-// CC BY / CC BY-SA / パブリックドメインのみ表示
-// それ以外はイニシャルアバターにフォールバック
-// ============================================================
-const wikiImageCache = {};
-const ALLOWED_LICENSES = [
-  "cc-by", "cc-by-sa", "cc0", "pd", "public domain",
-  "cc-by-2", "cc-by-3", "cc-by-4",
-  "cc-by-sa-2", "cc-by-sa-3", "cc-by-sa-4",
-];
+
 
 // ============================================================
 // 定数・スタイル
@@ -93,84 +82,9 @@ function Stars({ rating, size = 14 }) {
 }
 
 function PoliticianAvatar({ politician, size = 44 }) {
-  const [imgUrl, setImgUrl] = useState(null);
-  const [imgError, setImgError] = useState(false);
   const name = politician?.name || "";
   const ps = PARTY_STYLE[politician?.party] || { bg: "#F1F5F9", text: "#64748B" };
   const initials = name.slice(0, 2);
-
-  useEffect(() => {
-    if (!name) return;
-    const wikiName = name.replace(/\s/g, "");
-
-    // キャッシュ済みならそのまま使用（nullもキャッシュ）
-    if (wikiName in wikiImageCache) {
-      setImgUrl(wikiImageCache[wikiName]);
-      return;
-    }
-
-    async function fetchWithLicenseCheck() {
-      try {
-        // Step1: Wikipedia サマリーAPIで画像ファイル名を取得
-        const summaryRes = await fetch(
-          `https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiName)}`
-        );
-        if (!summaryRes.ok) { wikiImageCache[wikiName] = null; return; }
-        const summary = await summaryRes.json();
-
-        const thumbUrl = summary?.thumbnail?.source;
-        const originalUrl = summary?.originalimage?.source;
-        if (!thumbUrl && !originalUrl) { wikiImageCache[wikiName] = null; return; }
-
-        // Step2: ファイル名をURLから抽出
-        const imageUrl = originalUrl || thumbUrl;
-        const fileMatch = imageUrl.match(/\/([^/]+\.(jpg|jpeg|png|gif|svg))/i);
-        if (!fileMatch) { wikiImageCache[wikiName] = null; return; }
-        const fileName = decodeURIComponent(fileMatch[1]);
-
-        // Step3: Wikimedia Commons APIでライセンスを確認
-        const licenseRes = await fetch(
-          `https://commons.wikimedia.org/w/api.php?action=query&titles=File:${encodeURIComponent(fileName)}&prop=imageinfo&iiprop=extmetadata&format=json&origin=*`
-        );
-        if (!licenseRes.ok) { wikiImageCache[wikiName] = null; return; }
-        const licenseData = await licenseRes.json();
-
-        const pages = licenseData?.query?.pages || {};
-        const page = Object.values(pages)[0];
-        const metadata = page?.imageinfo?.[0]?.extmetadata;
-        const licenseShort = (metadata?.LicenseShortName?.value || "").toLowerCase();
-        const licenseUrl = (metadata?.LicenseUrl?.value || "").toLowerCase();
-
-        // Step4: 許可ライセンスかチェック
-        const isAllowed = ALLOWED_LICENSES.some(l =>
-          licenseShort.includes(l) || licenseUrl.includes(l)
-        );
-
-        if (isAllowed) {
-          wikiImageCache[wikiName] = thumbUrl;
-          setImgUrl(thumbUrl);
-        } else {
-          // ライセンス不明・非対応はイニシャルアバターを使用
-          wikiImageCache[wikiName] = null;
-        }
-      } catch {
-        wikiImageCache[wikiName] = null;
-      }
-    }
-
-    fetchWithLicenseCheck();
-  }, [name]);
-
-  if (imgUrl && !imgError) {
-    return (
-      <img
-        src={imgUrl}
-        alt={name}
-        onError={() => setImgError(true)}
-        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: `2px solid ${ps.text}22` }}
-      />
-    );
-  }
   return (
     <div style={{ width: size, height: size, borderRadius: "50%", background: ps.bg, color: ps.text, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.28, fontWeight: 700, flexShrink: 0, border: `2px solid ${ps.text}22` }}>
       {initials}
