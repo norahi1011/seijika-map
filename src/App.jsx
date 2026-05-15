@@ -825,19 +825,63 @@ function DetailPanel({ politician: p, onClose }) {
             )}
             {tab === "プロフィール" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                {/* 基本情報 */}
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", padding: "8px 0 4px", letterSpacing: 0.5 }}>基本情報</div>
                 {[
                   { label: "所属政党", value: partyName },
                   { label: "院", value: p.house },
                   { label: "選挙区", value: p.district || "—" },
                   { label: "当選回数", value: p.terms ? `${p.terms}回` : "—" },
-                  { label: "国会質問数", value: p.question_count > 0 ? `${p.question_count.toLocaleString()}回（最新任期中）` : "—" },
-                  { label: "本会議出席率", value: p.attendance_rate > 0 ? `${p.attendance_rate}%（現在の任期）` : "—" },
-                ].map((row, i, arr) => (
-                  <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: i < arr.length-1 ? "1px solid #F8FAFC" : "none" }}>
+                ].map((row, i) => (
+                  <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F8FAFC" }}>
                     <span style={{ fontSize: 12, color: "#94A3B8" }}>{row.label}</span>
                     <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B" }}>{row.value}</span>
                   </div>
                 ))}
+
+                {/* 国会活動実績 */}
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", padding: "12px 0 4px", letterSpacing: 0.5 }}>国会活動実績</div>
+                {[
+                  { label: "国会質問数", value: p.question_count > 0 ? `${p.question_count.toLocaleString()}回` : "—", note: "最新任期中" },
+                  { label: "本会議出席率", value: p.attendance_rate > 0 ? `${p.attendance_rate}%` : "—", note: "現在の任期" },
+                  { label: "提出法案数", value: p.bills_submitted > 0 ? `${p.bills_submitted}件` : "—", note: "議員立法" },
+                  { label: "成立法案数", value: p.bills_passed > 0 ? `${p.bills_passed}件` : "—", note: "成立分" },
+                  { label: "委員会所属", value: p.committee || "—", note: "" },
+                ].map((row, i) => (
+                  <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #F8FAFC" }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: "#94A3B8" }}>{row.label}</div>
+                      {row.note && <div style={{ fontSize: 10, color: "#CBD5E1" }}>{row.note}</div>}
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", textAlign: "right", maxWidth: 160 }}>{row.value}</span>
+                  </div>
+                ))}
+
+                {/* 政治資金 */}
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", padding: "12px 0 4px", letterSpacing: 0.5 }}>政治資金</div>
+                <div style={{ padding: "8px 0", borderBottom: "1px solid #F8FAFC", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 12, color: "#94A3B8" }}>政治資金収支報告書</div>
+                    <div style={{ fontSize: 10, color: "#CBD5E1" }}>総務省・都道府県選管公開</div>
+                  </div>
+                  <a
+                    href={`https://www.soumu.go.jp/senkyo/seiji_s/seijishikin/contents/SF${new Date().getFullYear()-1}0930.html`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: 12, color: "#4F46E5", textDecoration: "none", fontWeight: 600 }}
+                  >
+                    総務省で確認 →
+                  </a>
+                </div>
+                <div style={{ padding: "8px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 12, color: "#94A3B8" }}>政治資金収支（年間）</div>
+                    <div style={{ fontSize: 10, color: "#CBD5E1" }}>直近の公開データ</div>
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B" }}>
+                    {p.funds_amount > 0 ? `${(p.funds_amount / 10000).toLocaleString()}万円` : "—"}
+                  </span>
+                </div>
               </div>
             )}
           </div>
