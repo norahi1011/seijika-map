@@ -982,7 +982,7 @@ function TermsPage() {
           </div>
         ))}
         <div style={{ textAlign: "center", padding: "20px 0", fontSize: 12, color: "#94A3B8" }}>
-          © 2025 政治家レビュー · 国会会議録データ出典：国立国会図書館
+          © {new Date().getFullYear()} 政治家レビュー · 国会会議録データ出典：国立国会図書館
         </div>
       </div>
     </div>
