@@ -1169,7 +1169,7 @@ export default function App() {
       {/* フッター */}
       {!selectedPol && (
         <footer style={{ borderTop: "1px solid #E2E8F0", padding: "16px 20px", background: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-          <span style={{ fontSize: 12, color: "#94A3B8" }}>© 2025 政治家レビュー</span>
+          <span style={{ fontSize: 12, color: "#94A3B8" }}>© {new Date().getFullYear()} 政治家レビュー</span>
           <div style={{ display: "flex", gap: 16 }}>
             <button onClick={() => setPage("terms")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>利用規約</button>
             <button onClick={() => setPage("terms")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>プライバシーポリシー</button>
