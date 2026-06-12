@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 
 // ============================================================
 // Supabase接続
@@ -122,6 +123,7 @@ function Header({ page, setPage, stats }) {
     { key: "map", label: "地図で探す" },
     { key: "ranking", label: "ランキング" },
     { key: "news", label: "ニュース" },
+    { key: "column", label: "コラム" },
     { key: "kokkai", label: "国会記録" },
     { key: "schedule", label: "国会日程" },
   ];
@@ -931,6 +933,144 @@ function DetailPanel({ politician: p, onClose }) {
 }
 
 // ============================================================
+// コラム一覧ページ
+// ============================================================
+function ColumnPage({ onSelectArticle }) {
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabaseFetch("articles", {
+      filter: "is_published=eq.true",
+      order: "published_at.desc",
+    }).then(data => {
+      setArticles(data || []);
+      setLoading(false);
+    });
+  }, []);
+
+  const fmtDate = iso => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
+  };
+
+  return (
+    <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 110px)" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px" }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#64748B", marginBottom: 14, letterSpacing: 0.5 }}>政治コラム</div>
+        {loading ? <LoadingSpinner /> : articles.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 40, color: "#94A3B8", fontSize: 14 }}>記事がまだありません</div>
+        ) : articles.map(a => (
+          <div key={a.id}
+            onClick={() => onSelectArticle(a.slug)}
+            style={{ background: "#fff", borderRadius: 16, border: "2px solid #F1F5F9", marginBottom: 14, cursor: "pointer", overflow: "hidden" }}
+            onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 20px rgba(99,102,241,0.1)"}
+            onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+          >
+            {a.thumbnail_url
+              ? <img src={a.thumbnail_url} alt={a.title} style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }} />
+              : <div style={{ width: "100%", height: 100, background: "#EEF2FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>📰</div>
+            }
+            <div style={{ padding: "14px 16px 16px" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1E293B", lineHeight: 1.5, marginBottom: 6 }}>{a.title}</div>
+              {a.excerpt && <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.7, marginBottom: 10 }}>{a.excerpt}</div>}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  {(a.tags || []).slice(0, 4).map(t => (
+                    <span key={t} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "#EEF2FF", color: "#4F46E5", fontWeight: 600 }}>{t}</span>
+                  ))}
+                </div>
+                <span style={{ fontSize: 11, color: "#94A3B8", flexShrink: 0 }}>{fmtDate(a.published_at)}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 記事詳細ページ
+// ============================================================
+const MD_COMPONENTS = {
+  img: ({ node, ...props }) => (
+    <img {...props} style={{ maxWidth: "100%", height: "auto", borderRadius: 8, margin: "12px 0", display: "block" }} alt={props.alt || ""} />
+  ),
+  h1: ({ node, ...props }) => <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1E293B", margin: "28px 0 10px", lineHeight: 1.4 }} {...props} />,
+  h2: ({ node, ...props }) => <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1E293B", margin: "24px 0 8px", lineHeight: 1.4, paddingBottom: 6, borderBottom: "2px solid #EEF2FF" }} {...props} />,
+  h3: ({ node, ...props }) => <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1E293B", margin: "20px 0 6px" }} {...props} />,
+  p: ({ node, ...props }) => <p style={{ margin: "0 0 16px", lineHeight: 1.8 }} {...props} />,
+  ul: ({ node, ...props }) => <ul style={{ paddingLeft: 24, margin: "0 0 16px" }} {...props} />,
+  ol: ({ node, ...props }) => <ol style={{ paddingLeft: 24, margin: "0 0 16px" }} {...props} />,
+  li: ({ node, ...props }) => <li style={{ marginBottom: 6, lineHeight: 1.7 }} {...props} />,
+  a: ({ node, ...props }) => <a {...props} style={{ color: "#4F46E5", textDecoration: "none" }} target="_blank" rel="noopener noreferrer" />,
+  blockquote: ({ node, ...props }) => (
+    <blockquote style={{ borderLeft: "4px solid #C7D2FE", margin: "16px 0", padding: "8px 16px", color: "#64748B", background: "#F8FAFF", borderRadius: "0 8px 8px 0" }} {...props} />
+  ),
+  pre: ({ node, ...props }) => <pre style={{ background: "#1E293B", padding: 16, borderRadius: 8, overflowX: "auto", margin: "16px 0" }} {...props} />,
+  code: ({ node, ...props }) => <code style={{ background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, fontSize: 14, color: "#4F46E5", fontFamily: "monospace" }} {...props} />,
+  table: ({ node, ...props }) => <div style={{ overflowX: "auto", margin: "16px 0" }}><table style={{ borderCollapse: "collapse", width: "100%" }} {...props} /></div>,
+  th: ({ node, ...props }) => <th style={{ padding: "8px 12px", background: "#F8FAFF", borderBottom: "2px solid #E2E8F0", textAlign: "left", fontWeight: 600, color: "#1E293B", fontSize: 14 }} {...props} />,
+  td: ({ node, ...props }) => <td style={{ padding: "8px 12px", borderBottom: "1px solid #F1F5F9", color: "#374151", fontSize: 14 }} {...props} />,
+};
+
+function ArticlePage({ slug, onBack }) {
+  const [article, setArticle] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!slug) return;
+    setLoading(true);
+    supabaseFetch("articles", { filter: `slug=eq.${slug}`, limit: 1 }).then(data => {
+      setArticle(data?.[0] || null);
+      setLoading(false);
+    });
+  }, [slug]);
+
+  const fmtDate = iso => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
+  };
+
+  return (
+    <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 110px)" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#64748B", background: "none", border: "none", cursor: "pointer", padding: "14px 16px", fontFamily: "inherit" }}>
+          ← コラム一覧に戻る
+        </button>
+        {loading ? <LoadingSpinner /> : !article ? (
+          <div style={{ textAlign: "center", padding: 40, color: "#94A3B8", fontSize: 14 }}>記事が見つかりませんでした</div>
+        ) : (
+          <article style={{ background: "#fff", borderRadius: 16, border: "1px solid #E2E8F0", overflow: "hidden", margin: "0 16px 32px" }}>
+            {article.thumbnail_url && (
+              <img src={article.thumbnail_url} alt={article.title} style={{ width: "100%", maxHeight: 320, objectFit: "cover", display: "block" }} />
+            )}
+            <div style={{ padding: "20px 20px 36px" }}>
+              <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1E293B", lineHeight: 1.5, margin: "0 0 10px" }}>{article.title}</h1>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: "#94A3B8" }}>{fmtDate(article.published_at)}</span>
+                {article.author && <span style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>{article.author}</span>}
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 24 }}>
+                {(article.tags || []).map(t => (
+                  <span key={t} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "#EEF2FF", color: "#4F46E5", fontWeight: 600 }}>{t}</span>
+                ))}
+              </div>
+              <div style={{ fontSize: 16, lineHeight: 1.8, color: "#374151" }}>
+                <ReactMarkdown components={MD_COMPONENTS}>{article.content}</ReactMarkdown>
+              </div>
+            </div>
+          </article>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // メインApp
 // ============================================================
 // ============================================================
@@ -992,6 +1132,7 @@ function TermsPage() {
 export default function App() {
   const [page, setPage] = useState("map");
   const [selectedPol, setSelectedPol] = useState(null);
+  const [currentSlug, setCurrentSlug] = useState(null);
   const [stats, setStats] = useState({ total: 84, shugiin: 54, sangiin: 30, reviews: 0 });
 
   useEffect(() => {
@@ -1015,6 +1156,8 @@ export default function App() {
       {page === "map" && <MapPage onSelect={setSelectedPol} />}
       {page === "ranking" && <RankingPage onSelect={setSelectedPol} />}
       {page === "news" && <NewsPage onSelect={setSelectedPol} />}
+      {page === "column" && <ColumnPage onSelectArticle={slug => { setCurrentSlug(slug); setPage("article"); }} />}
+      {page === "article" && <ArticlePage slug={currentSlug} onBack={() => setPage("column")} />}
       {page === "kokkai" && <KokkaiPage onSelect={setSelectedPol} />}
       {page === "schedule" && <SchedulePage />}
       {page === "terms" && <TermsPage />}
