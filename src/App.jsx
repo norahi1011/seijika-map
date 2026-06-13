@@ -1252,6 +1252,131 @@ function ContactPage() {
   );
 }
 
+// ============================================================
+// プライバシーポリシーページ
+// ============================================================
+function PrivacyPage() {
+  const sections = [
+    {
+      title: "1. 個人情報の取得について",
+      content: "本サービスでは、お問い合わせフォームをご利用の際に、お名前およびメールアドレスを取得します。それ以外の個人情報は収集しておりません。",
+    },
+    {
+      title: "2. 個人情報の利用目的",
+      content: "取得した個人情報は、お問い合わせへの回答を行うためにのみ使用します。ご本人の同意なく第三者に提供することはありません。",
+    },
+    {
+      title: "3. Cookieについて",
+      content: "Cookie（クッキー）とは、ウェブサイトがお使いのブラウザに保存する小さなテキストデータです。本サービスはサービス改善のためCookieを使用します。Cookieはお使いのブラウザの設定から無効化することができますが、一部機能が利用できなくなる場合があります。",
+    },
+    {
+      title: "4. アクセス解析ツール（Google Analytics）について",
+      content: "本サービスでは、Googleが提供するアクセス解析ツール「Google Analytics（GA4）」を使用しています。Google AnalyticsはCookieを使用してアクセス情報を収集しますが、個人を特定する情報は含まれません。収集されたデータはGoogleのプライバシーポリシーに基づき管理されます。\n\nGoogle プライバシーポリシー：https://policies.google.com/privacy",
+    },
+    {
+      title: "5. 広告配信について（Google AdSense）",
+      content: "本サービスでは、Google LLCが提供する広告配信サービス「Google AdSense」を使用しています。Googleを含む第三者配信事業者は、ユーザーが本サービスや他のウェブサイトを過去に訪問した際の情報に基づき、興味に応じた広告を表示するためにCookieを使用します。\n\n・パーソナライズ広告の無効化：https://www.google.com/settings/ads\n・AdSenseの仕組みの詳細：https://policies.google.com/technologies/ads",
+    },
+    {
+      title: "6. 免責事項",
+      content: "本サービスに掲載する情報の正確性・完全性に努めますが、内容を保証するものではありません。本サービスは政治的中立を旨とし、特定の政党・政治家・候補者を支持または批判する目的で運営しておりません。掲載情報の利用により生じた損害について、運営は一切の責任を負いません。",
+    },
+    {
+      title: "7. 著作権について",
+      content: "本サービスに掲載されているコンテンツ（テキスト・画像・デザイン等）の著作権は、運営または正当な権利を有する第三者に帰属します。無断転載・複製・改変はお断りします。なお、国会会議録データは国立国会図書館「国会会議録検索システム」APIより取得しており、同館の利用規約に従います。",
+    },
+    {
+      title: "8. プライバシーポリシーの変更について",
+      content: "本プライバシーポリシーは、法令変更やサービス内容の変化に応じて予告なく改定する場合があります。改定後のポリシーは本ページに掲載した時点で効力を生じるものとします。",
+    },
+    {
+      title: "9. 制定日・最終更新日",
+      content: "制定日：2026年6月13日\n最終更新日：2026年6月13日",
+    },
+  ];
+
+  return (
+    <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 110px)" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "28px 16px" }}>
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1E293B", marginBottom: 6 }}>プライバシーポリシー</h1>
+          <p style={{ fontSize: 13, color: "#94A3B8" }}>最終更新日：2026年6月13日</p>
+        </div>
+        {sections.map((s, i) => (
+          <div key={i} style={{ background: "#fff", borderRadius: 12, padding: "16px 20px", marginBottom: 10, border: "1px solid #E2E8F0" }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#1E293B", marginBottom: 8 }}>{s.title}</div>
+            <div style={{ fontSize: 14, color: "#475569", lineHeight: 1.9, whiteSpace: "pre-line" }}>{s.content}</div>
+          </div>
+        ))}
+        <div style={{ textAlign: "center", padding: "20px 0", fontSize: 12, color: "#94A3B8" }}>
+          © {new Date().getFullYear()} 政治家レビュー
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 運営者情報ページ
+// ============================================================
+function AboutPage({ setPage }) {
+  const rows = [
+    { label: "サイト名", value: "政治家レビュー" },
+    { label: "運営者", value: "時事ニュース本音で言っていいすか" },
+    { label: "X（旧Twitter）", value: "@english__hal", link: "https://x.com/english__hal" },
+  ];
+
+  return (
+    <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 110px)" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "28px 16px" }}>
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1E293B", marginBottom: 6 }}>運営者情報</h1>
+        </div>
+
+        {/* 基本情報 */}
+        <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E2E8F0", overflow: "hidden", marginBottom: 10 }}>
+          {rows.map((r, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", padding: "14px 20px", borderBottom: i < rows.length - 1 ? "1px solid #F1F5F9" : "none", gap: 12, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 13, color: "#94A3B8", minWidth: 130, flexShrink: 0 }}>{r.label}</span>
+              {r.link ? (
+                <a href={r.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, color: "#6366F1", fontWeight: 500, textDecoration: "none" }}>{r.value}</a>
+              ) : (
+                <span style={{ fontSize: 15, color: "#1E293B", fontWeight: 500 }}>{r.value}</span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* サイトの目的 */}
+        <div style={{ background: "#fff", borderRadius: 12, padding: "16px 20px", marginBottom: 10, border: "1px solid #E2E8F0" }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#1E293B", marginBottom: 8 }}>サイトの目的</div>
+          <div style={{ fontSize: 14, color: "#475569", lineHeight: 1.9 }}>
+            政治家レビューは、国会議員の活動実績・国会質問・出席率などの公開情報と、市民による口コミを中立的に共有するプラットフォームです。特定の政党・政治家を支持・批判する目的ではなく、有権者が客観的な情報にアクセスできる場を提供することを目的としています。
+          </div>
+        </div>
+
+        {/* お問い合わせ */}
+        <div style={{ background: "#fff", borderRadius: 12, padding: "16px 20px", marginBottom: 10, border: "1px solid #E2E8F0" }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#1E293B", marginBottom: 8 }}>お問い合わせ</div>
+          <div style={{ fontSize: 14, color: "#475569", lineHeight: 1.9, marginBottom: 14 }}>
+            掲載情報の削除依頼・ご意見・ご質問は、お問い合わせフォームよりご連絡ください。
+          </div>
+          <button
+            onClick={() => setPage("contact")}
+            style={{ padding: "12px 24px", fontSize: 14, fontWeight: 700, borderRadius: 10, border: "none", background: "#6366F1", color: "#fff", cursor: "pointer" }}
+          >
+            お問い合わせフォームへ
+          </button>
+        </div>
+
+        <div style={{ textAlign: "center", padding: "20px 0", fontSize: 12, color: "#94A3B8" }}>
+          © {new Date().getFullYear()} 政治家レビュー
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [page, setPage] = useState("map");
   const [selectedPol, setSelectedPol] = useState(null);
@@ -1285,6 +1410,8 @@ export default function App() {
       {page === "schedule" && <SchedulePage />}
       {page === "terms" && <TermsPage />}
       {page === "contact" && <ContactPage />}
+      {page === "privacy" && <PrivacyPage />}
+      {page === "about" && <AboutPage setPage={setPage} />}
       {selectedPol && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, maxHeight: "70vh", overflowY: "auto", boxShadow: "0 -8px 32px rgba(0,0,0,0.15)" }}>
           <DetailPanel politician={selectedPol} onClose={() => setSelectedPol(null)} />
@@ -1296,7 +1423,8 @@ export default function App() {
           <span style={{ fontSize: 12, color: "#94A3B8" }}>© {new Date().getFullYear()} 政治家レビュー</span>
           <div style={{ display: "flex", gap: 16 }}>
             <button onClick={() => setPage("terms")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>利用規約</button>
-            <button onClick={() => setPage("terms")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>プライバシーポリシー</button>
+            <button onClick={() => setPage("privacy")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>プライバシーポリシー</button>
+            <button onClick={() => setPage("about")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>運営者情報</button>
             <button onClick={() => setPage("contact")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>お問い合わせ</button>
             <span style={{ fontSize: 12, color: "#94A3B8" }}>国会データ出典：国立国会図書館</span>
           </div>
