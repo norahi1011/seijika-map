@@ -1129,6 +1129,129 @@ function TermsPage() {
   );
 }
 
+// ============================================================
+// お問い合わせページ（Netlify Forms）
+// ============================================================
+const encodeForm = (data) =>
+  Object.keys(data)
+    .map((k) => encodeURIComponent(k) + "=" + encodeURIComponent(data[k]))
+    .join("&");
+
+function ContactPage() {
+  const [fields, setFields] = useState({ name: "", email: "", message: "", "bot-field": "" });
+  const [status, setStatus] = useState("idle"); // idle | sending | done | error
+
+  const handleChange = (e) => setFields((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setStatus("sending");
+    fetch("/", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: encodeForm({ "form-name": "contact", ...fields }),
+    })
+      .then(() => setStatus("done"))
+      .catch(() => setStatus("error"));
+  };
+
+  const inputStyle = {
+    width: "100%", boxSizing: "border-box", fontSize: 15, padding: "12px 14px",
+    borderRadius: 10, border: "1.5px solid #E2E8F0", outline: "none",
+    color: "#1E293B", background: "#fff", appearance: "none",
+  };
+
+  if (status === "done") {
+    return (
+      <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 110px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center", padding: "40px 24px" }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>✅</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#1E293B", marginBottom: 8 }}>送信しました</div>
+          <div style={{ fontSize: 14, color: "#64748B" }}>お問い合わせありがとうございます。内容を確認の上、ご連絡いたします。</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: "#F8FAFF", minHeight: "calc(100vh - 110px)" }}>
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: "28px 16px" }}>
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1E293B", marginBottom: 6 }}>お問い合わせ</h1>
+          <p style={{ fontSize: 13, color: "#94A3B8" }}>掲載情報の削除依頼・ご意見・ご質問はこちらからご連絡ください。</p>
+        </div>
+
+        <form
+          name="contact"
+          method="POST"
+          data-netlify="true"
+          data-netlify-honeypot="bot-field"
+          onSubmit={handleSubmit}
+          style={{ background: "#fff", borderRadius: 14, padding: "24px 20px", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 16 }}
+        >
+          {/* Netlify 必須: form-name hidden */}
+          <input type="hidden" name="form-name" value="contact" />
+          {/* honeypot: スパム対策（非表示） */}
+          <div style={{ display: "none" }}>
+            <label>ここは入力しないでください<input name="bot-field" onChange={handleChange} /></label>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
+              お名前 <span style={{ color: "#EF4444" }}>*</span>
+            </label>
+            <input
+              type="text" name="name" value={fields.name} onChange={handleChange}
+              placeholder="山田 太郎" required
+              style={inputStyle}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
+              メールアドレス <span style={{ color: "#EF4444" }}>*</span>
+            </label>
+            <input
+              type="email" name="email" value={fields.email} onChange={handleChange}
+              placeholder="example@mail.com" required
+              style={inputStyle}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
+              お問い合わせ内容 <span style={{ color: "#EF4444" }}>*</span>
+            </label>
+            <textarea
+              name="message" value={fields.message} onChange={handleChange}
+              placeholder="お問い合わせ内容をご記入ください。" required rows={6}
+              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.7 }}
+            />
+          </div>
+
+          {status === "error" && (
+            <div style={{ fontSize: 13, color: "#EF4444", background: "#FEF2F2", padding: "10px 14px", borderRadius: 8 }}>
+              送信に失敗しました。時間をおいて再度お試しください。
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={status === "sending"}
+            style={{
+              padding: "14px", fontSize: 15, fontWeight: 700, borderRadius: 10, border: "none",
+              background: status === "sending" ? "#94A3B8" : "#6366F1", color: "#fff",
+              cursor: status === "sending" ? "not-allowed" : "pointer", transition: "background 0.2s",
+            }}
+          >
+            {status === "sending" ? "送信中..." : "送信する"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [page, setPage] = useState("map");
   const [selectedPol, setSelectedPol] = useState(null);
@@ -1161,6 +1284,7 @@ export default function App() {
       {page === "kokkai" && <KokkaiPage onSelect={setSelectedPol} />}
       {page === "schedule" && <SchedulePage />}
       {page === "terms" && <TermsPage />}
+      {page === "contact" && <ContactPage />}
       {selectedPol && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, maxHeight: "70vh", overflowY: "auto", boxShadow: "0 -8px 32px rgba(0,0,0,0.15)" }}>
           <DetailPanel politician={selectedPol} onClose={() => setSelectedPol(null)} />
@@ -1173,6 +1297,7 @@ export default function App() {
           <div style={{ display: "flex", gap: 16 }}>
             <button onClick={() => setPage("terms")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>利用規約</button>
             <button onClick={() => setPage("terms")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>プライバシーポリシー</button>
+            <button onClick={() => setPage("contact")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>お問い合わせ</button>
             <span style={{ fontSize: 12, color: "#94A3B8" }}>国会データ出典：国立国会図書館</span>
           </div>
         </footer>
