@@ -1,6 +1,16 @@
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 
+function useIsMobile() {
+  const [m, setM] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return m;
+}
+
 // ============================================================
 // Supabase接続
 // ============================================================
@@ -127,6 +137,7 @@ function Header({ page, setPage, stats }) {
     { key: "kokkai", label: "国会記録" },
     { key: "schedule", label: "国会日程" },
   ];
+  const isMobile = useIsMobile();
   return (
     <header style={{ background: "#fff", borderBottom: "1px solid #E2E8F0", position: "sticky", top: 0, zIndex: 100 }}>
       <div style={{ padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
@@ -134,11 +145,11 @@ function Header({ page, setPage, stats }) {
           <div style={{ width: 36, height: 36, borderRadius: 8, background: "#EEF2FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🗳️</div>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: "#1E293B", lineHeight: 1.2 }}>政治家レビュー</div>
-            <div style={{ fontSize: 11, color: "#94A3B8" }}>議員の活動実績と口コミを共有するプラットフォーム</div>
+            <div style={{ fontSize: 11, color: "#94A3B8", display: isMobile ? "none" : "block" }}>議員の活動実績と口コミを共有するプラットフォーム</div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-          <div style={{ display: "flex", gap: 16 }}>
+          <div style={{ display: isMobile ? "none" : "flex", gap: 16 }}>
             {[
               { num: stats?.total || 84, label: "掲載議員数" },
               { num: stats?.shugiin || 54, label: "衆議院" },
@@ -152,14 +163,14 @@ function Header({ page, setPage, stats }) {
             ))}
           </div>
           <div style={{ display: "flex", gap: 6 }}>
-            <button style={{ fontSize: 12, padding: "5px 14px", borderRadius: 6, border: "1px solid #E2E8F0", background: "#fff", color: "#64748B", cursor: "pointer" }}>ログイン</button>
-            <button style={{ fontSize: 12, padding: "5px 14px", borderRadius: 6, border: "none", background: "#4F46E5", color: "#fff", cursor: "pointer", fontWeight: 600 }}>新規登録</button>
+            <button style={{ fontSize: 12, padding: isMobile ? "10px 14px" : "5px 14px", borderRadius: 6, border: "1px solid #E2E8F0", background: "#fff", color: "#64748B", cursor: "pointer" }}>ログイン</button>
+            <button style={{ fontSize: 12, padding: isMobile ? "10px 14px" : "5px 14px", borderRadius: 6, border: "none", background: "#4F46E5", color: "#fff", cursor: "pointer", fontWeight: 600 }}>新規登録</button>
           </div>
         </div>
       </div>
-      <nav style={{ display: "flex", padding: "0 20px", background: "#FAFAFA" }}>
+      <nav style={{ display: "flex", padding: isMobile ? "0" : "0 20px", background: "#FAFAFA", overflowX: isMobile ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
         {navs.map(n => (
-          <button key={n.key} onClick={() => setPage(n.key)} style={{ fontSize: 13, padding: "10px 16px", border: "none", background: "none", cursor: "pointer", color: page === n.key ? "#4F46E5" : "#64748B", borderBottom: `2px solid ${page === n.key ? "#4F46E5" : "transparent"}`, fontWeight: page === n.key ? 600 : 400 }}>
+          <button key={n.key} onClick={() => setPage(n.key)} style={{ fontSize: 13, padding: isMobile ? "10px 12px" : "10px 16px", border: "none", background: "none", cursor: "pointer", color: page === n.key ? "#4F46E5" : "#64748B", borderBottom: `2px solid ${page === n.key ? "#4F46E5" : "transparent"}`, fontWeight: page === n.key ? 600 : 400, flexShrink: 0, whiteSpace: "nowrap" }}>
             {n.label}
           </button>
         ))}
@@ -271,6 +282,7 @@ function MapPage({ onSelect }) {
   const [search, setSearch] = useState("");
   const [houseFilter, setHouseFilter] = useState("全て");
   const [selected, setSelected] = useState(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     async function load() {
@@ -296,19 +308,19 @@ function MapPage({ onSelect }) {
   const pName = p => p.parties?.short_name || p.parties?.name || "無所属";
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", minHeight: "calc(100vh - 110px)" }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "300px 1fr", minHeight: "calc(100vh - 110px)" }}>
       {/* 左：検索＋議員リスト */}
-      <div style={{ borderRight: "1px solid #E2E8F0", background: "#fff", display: "flex", flexDirection: "column" }}>
+      <div style={{ borderRight: isMobile ? "none" : "1px solid #E2E8F0", borderBottom: isMobile ? "1px solid #E2E8F0" : "none", background: "#fff", display: "flex", flexDirection: "column" }}>
         {/* 検索 */}
         <div style={{ padding: "12px 14px", borderBottom: "1px solid #F1F5F9", background: "#FAFAFA" }}>
           <div style={{ fontSize: 12, color: "#64748B", marginBottom: 8 }}>議員名・選挙区・政党で絞り込んで口コミを確認できます</div>
           <div style={{ position: "relative", marginBottom: 8 }}>
             <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#94A3B8" }}>🔍</span>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="例：田中、東京、自民党..." style={{ width: "100%", fontSize: 12, padding: "6px 10px 6px 28px", borderRadius: 6, border: "1px solid #E2E8F0", outline: "none", boxSizing: "border-box", color: "#1E293B", background: "#fff" }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="例：田中、東京、自民党..." style={{ width: "100%", fontSize: isMobile ? 16 : 12, padding: isMobile ? "11px 10px 11px 34px" : "6px 10px 6px 28px", borderRadius: 6, border: "1px solid #E2E8F0", outline: "none", boxSizing: "border-box", color: "#1E293B", background: "#fff" }} />
           </div>
           <div style={{ display: "flex", gap: 4 }}>
             {["全て","衆議院","参議院"].map(f => (
-              <button key={f} onClick={() => setHouseFilter(f)} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, border: `1px solid ${houseFilter === f ? "#4F46E5" : "#E2E8F0"}`, background: houseFilter === f ? "#EEF2FF" : "#fff", color: houseFilter === f ? "#4F46E5" : "#64748B", cursor: "pointer" }}>{f}</button>
+              <button key={f} onClick={() => setHouseFilter(f)} style={{ fontSize: isMobile ? 14 : 11, padding: isMobile ? "10px 16px" : "3px 10px", borderRadius: 20, border: `1px solid ${houseFilter === f ? "#4F46E5" : "#E2E8F0"}`, background: houseFilter === f ? "#EEF2FF" : "#fff", color: houseFilter === f ? "#4F46E5" : "#64748B", cursor: "pointer" }}>{f}</button>
             ))}
           </div>
         </div>
@@ -345,9 +357,9 @@ function MapPage({ onSelect }) {
       </div>
 
       {/* 右：地図＋サイドバー */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 240px", background: "#F8FAFF" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 240px", background: "#F8FAFF" }}>
         {/* 地図 */}
-        <div style={{ padding: "16px", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "16px", display: "flex", flexDirection: "column", overflowX: isMobile ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <span style={{ fontSize: 13, color: "#64748B" }}>選挙区マップ — クリックで絞り込み</span>
             <div style={{ display: "flex", gap: 10 }}>
@@ -358,7 +370,7 @@ function MapPage({ onSelect }) {
               ))}
             </div>
           </div>
-          <svg viewBox="0 0 560 500" style={{ width: "100%" }} xmlns="http://www.w3.org/2000/svg">
+          <svg viewBox="0 0 560 500" style={{ width: isMobile ? "560px" : "100%" }} xmlns="http://www.w3.org/2000/svg">
             {[
               [390,10,160,80,"北海道","#E6F1FB","#B5D4F4"],
               [400,102,46,24,"青森","#EAF3DE","#C0DD97"],[400,128,46,24,"岩手","#EAF3DE","#C0DD97"],
@@ -389,14 +401,14 @@ function MapPage({ onSelect }) {
             ].map(([x,y,w,h,name,fill,stroke]) => (
               <g key={name} style={{ cursor: "pointer" }} onClick={() => setSearch(name)}>
                 <rect x={x} y={y} width={w} height={h} rx="3" fill={fill} stroke={stroke} strokeWidth="0.5" />
-                <text x={x+w/2} y={y+h/2+4} textAnchor="middle" fontSize="9.5" fill="#475569">{name}</text>
+                <text x={x+w/2} y={y+h/2+4} textAnchor="middle" fontSize={isMobile ? "12" : "9.5"} fill="#475569">{name}</text>
               </g>
             ))}
           </svg>
         </div>
 
         {/* サイドバー */}
-        <div style={{ borderLeft: "1px solid #E2E8F0", padding: "14px 12px", background: "#fff", overflowY: "auto" }}>
+        <div style={{ borderLeft: "1px solid #E2E8F0", padding: "14px 12px", background: "#fff", overflowY: "auto", display: isMobile ? "none" : "block" }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: "#1E293B", marginBottom: 10, paddingBottom: 8, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", gap: 5 }}>
             <span style={{ fontSize: 14 }}>📈</span>人気の議員
             <span style={{ fontSize: 10, color: "#94A3B8", fontWeight: 400 }}>過去24時間</span>
@@ -700,6 +712,7 @@ function DetailPanel({ politician: p, onClose }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [following, setFollowing] = useState(false);
+  const isMobile = useIsMobile();
 
   const ps = PARTY_STYLE[p.parties?.short_name] || PARTY_STYLE[p.parties?.name] || { bg: "#F1F5F9", text: "#64748B" };
   const partyName = p.parties?.short_name || p.parties?.name || "無所属";
@@ -765,14 +778,14 @@ function DetailPanel({ politician: p, onClose }) {
       </div>
 
       {/* 中段：活動スコアカード（独自の通知表形式） */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", borderBottom: "1px solid #F1F5F9" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", borderBottom: "1px solid #F1F5F9" }}>
         {[
           { label: "市民評価", value: avgR ? `${avgR}点` : "未評価", sub: `${totalR}件の口コミ`, color: "#FBBF24", icon: "⭐" },
           { label: "国会質問数", value: p.question_count > 0 ? `${p.question_count.toLocaleString()}回` : "—", sub: "最新任期中", color: "#4F46E5", icon: "🎤" },
           { label: "当選回数", value: p.terms > 0 ? `${p.terms}回` : "—", sub: "通算", color: "#10B981", icon: "🏆" },
           { label: "本会議出席率", value: p.attendance_rate > 0 ? `${p.attendance_rate}%` : "—", sub: "現在の任期", color: "#F59E0B", icon: "📋" },
         ].map((s, i) => (
-          <div key={i} style={{ padding: "12px 14px", borderRight: i < 3 ? "1px solid #F1F5F9" : "none", background: i === 0 ? "#FFFBEB" : "#fff" }}>
+          <div key={i} style={{ padding: "12px 14px", borderRight: isMobile ? (i % 2 === 0 ? "1px solid #F1F5F9" : "none") : (i < 3 ? "1px solid #F1F5F9" : "none"), borderBottom: isMobile && i < 2 ? "1px solid #F1F5F9" : "none", background: i === 0 ? "#FFFBEB" : "#fff" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
               <span style={{ fontSize: 14 }}>{s.icon}</span>
               <span style={{ fontSize: 10, color: "#94A3B8" }}>{s.label}</span>
@@ -784,7 +797,7 @@ function DetailPanel({ politician: p, onClose }) {
       </div>
 
       {/* 下段：左＝口コミ、右＝投稿フォーム */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", maxHeight: 380, overflow: "hidden" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 280px", maxHeight: isMobile ? "none" : 380, overflow: isMobile ? "visible" : "hidden" }}>
 
         {/* 左：口コミ一覧 */}
         <div style={{ overflowY: "auto", borderRight: "1px solid #F1F5F9" }}>
