@@ -310,7 +310,7 @@ function MapPage({ onSelect }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "300px 1fr", minHeight: "calc(100vh - 110px)" }}>
       {/* 左：検索＋議員リスト */}
-      <div style={{ borderRight: isMobile ? "none" : "1px solid #E2E8F0", borderBottom: isMobile ? "1px solid #E2E8F0" : "none", background: "#fff", display: "flex", flexDirection: "column" }}>
+      <div style={{ borderRight: isMobile ? "none" : "1px solid #E2E8F0", borderBottom: "none", background: "#fff", display: "flex", flexDirection: "column", order: isMobile ? 2 : 0 }}>
         {/* 検索 */}
         <div style={{ padding: "12px 14px", borderBottom: "1px solid #F1F5F9", background: "#FAFAFA" }}>
           <div style={{ fontSize: 12, color: "#64748B", marginBottom: 8 }}>議員名・選挙区・政党で絞り込んで口コミを確認できます</div>
@@ -357,7 +357,7 @@ function MapPage({ onSelect }) {
       </div>
 
       {/* 右：地図＋サイドバー */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 240px", background: "#F8FAFF" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 240px", background: "#F8FAFF", order: isMobile ? 1 : 0, borderBottom: isMobile ? "1px solid #E2E8F0" : "none" }}>
         {/* 地図 */}
         <div style={{ padding: "16px", display: "flex", flexDirection: "column", overflowX: isMobile ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
