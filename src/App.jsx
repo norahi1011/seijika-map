@@ -36,6 +36,20 @@ async function supabaseFetch(table, options = {}) {
   } catch { return []; }
 }
 
+async function supabaseCount(table, filter) {
+  let url = `${SUPABASE_URL}/rest/v1/${table}?select=id&limit=0`;
+  if (filter) url += `&${filter}`;
+  try {
+    const res = await fetch(url, {
+      headers: { ...SUPA_HEADERS, Prefer: "count=exact" },
+    });
+    if (!res.ok) return 0;
+    const range = res.headers.get("Content-Range"); // 例: "*/57"
+    const total = range ? parseInt(range.split("/")[1], 10) : 0;
+    return isNaN(total) ? 0 : total;
+  } catch { return 0; }
+}
+
 async function supabaseInsert(table, data) {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
@@ -1398,13 +1412,16 @@ export default function App() {
 
   useEffect(() => {
     async function loadStats() {
-      const all = await supabaseFetch("politicians", { select: "id,house", limit: 1000 });
+      const [all, reviewCount] = await Promise.all([
+        supabaseFetch("politicians", { select: "id,house", limit: 1000 }),
+        supabaseCount("reviews"),
+      ]);
       if (all?.length) {
         setStats({
           total: all.length,
           shugiin: all.filter(p => p.house === "衆議院").length,
           sangiin: all.filter(p => p.house === "参議院").length,
-          reviews: 0,
+          reviews: reviewCount,
         });
       }
     }
