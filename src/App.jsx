@@ -1428,14 +1428,36 @@ export default function App() {
     loadStats();
   }, []);
 
+  useEffect(() => {
+    const path = window.location.pathname;
+    const m = path.match(/^\/articles\/(.+)$/);
+    if (m) {
+      setCurrentSlug(m[1]);
+      setPage("article");
+    }
+    const onPop = () => {
+      const p = window.location.pathname;
+      const match = p.match(/^\/articles\/(.+)$/);
+      if (match) {
+        setCurrentSlug(match[1]);
+        setPage("article");
+      } else {
+        setCurrentSlug(null);
+        setPage("column");
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   return (
     <div style={{ fontFamily: "'Hiragino Sans','Yu Gothic',sans-serif", background: "#F8FAFF", minHeight: "100vh" }}>
       <Header page={page} setPage={setPage} stats={stats} />
       {page === "map" && <MapPage onSelect={setSelectedPol} />}
       {page === "ranking" && <RankingPage onSelect={setSelectedPol} />}
       {page === "news" && <NewsPage onSelect={setSelectedPol} />}
-      {page === "column" && <ColumnPage onSelectArticle={slug => { setCurrentSlug(slug); setPage("article"); }} />}
-      {page === "article" && <ArticlePage slug={currentSlug} onBack={() => setPage("column")} />}
+      {page === "column" && <ColumnPage onSelectArticle={slug => { setCurrentSlug(slug); setPage("article"); window.history.pushState({}, "", `/articles/${slug}`); }} />}
+      {page === "article" && <ArticlePage slug={currentSlug} onBack={() => { setCurrentSlug(null); setPage("column"); window.history.pushState({}, "", "/"); }} />}
       {page === "kokkai" && <KokkaiPage onSelect={setSelectedPol} />}
       {page === "schedule" && <SchedulePage />}
       {page === "terms" && <TermsPage />}
