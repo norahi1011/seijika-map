@@ -4,6 +4,9 @@ node_modules/
 # production build
 build/
 
+# generated at build time
+public/sitemap.xml
+
 # environment variables (never commit secrets)
 .env
 .env.local

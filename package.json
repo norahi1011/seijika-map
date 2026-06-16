@@ -9,6 +9,7 @@
     "react-scripts": "5.0.1"
   },
   "scripts": {
+    "prebuild": "node scripts/generate-sitemap.js",
     "start": "react-scripts start",
     "build": "react-scripts build"
   },

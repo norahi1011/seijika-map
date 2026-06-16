@@ -1,2 +1,3 @@
 User-agent: *
 Allow: /
+Sitemap: https://seijika-map.netlify.app/sitemap.xml
