@@ -239,8 +239,7 @@ function RankingPage({ onSelect }) {
           <select value={sort} onChange={e => setSort(e.target.value)} style={{ fontSize: 12, padding: "5px 10px", borderRadius: 20, border: "2px solid #E2E8F0", background: "#fff", color: "#64748B", fontWeight: 600, marginLeft: "auto" }}>
             <option value="avg_rating">評価順</option>
             <option value="review_count">口コミ数順</option>
-            <option value="question_count">質問回数順</option>
-            <option value="attendance_rate">出席率順</option>
+            <option value="question_count">発言回数順</option>
           </select>
         </div>
 
@@ -268,8 +267,7 @@ function RankingPage({ onSelect }) {
                       {p.review_count > 0 && <span style={{ fontSize: 12, color: "#94A3B8" }}>({p.review_count}件)</span>}
                     </div>
                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      {p.question_count > 0 && <span style={{ fontSize: 11, color: "#94A3B8" }}>質問 <b style={{ color: "#1E293B" }}>{p.question_count}回</b></span>}
-                      {p.attendance_rate > 0 && <span style={{ fontSize: 11, color: "#94A3B8" }}>出席率 <b style={{ color: "#1E293B" }}>{p.attendance_rate}%</b></span>}
+                      {p.question_count > 0 && <span style={{ fontSize: 11, color: "#94A3B8" }}>発言 <b style={{ color: "#1E293B" }}>{p.question_count}回</b></span>}
                     </div>
                   </div>
                 </div>
@@ -342,7 +340,7 @@ function MapPage({ onSelect }) {
         <div style={{ overflowY: "auto", flex: 1 }}>
           {loading ? <LoadingSpinner /> : (
             <>
-              <div style={{ padding: "8px 14px", fontSize: 11, color: "#94A3B8", borderBottom: "1px solid #F1F5F9", background: "#FAFAFA" }}>{filtered.length}名の議員 · 質問回数順</div>
+              <div style={{ padding: "8px 14px", fontSize: 11, color: "#94A3B8", borderBottom: "1px solid #F1F5F9", background: "#FAFAFA" }}>{filtered.length}名の議員 · 発言回数順</div>
               {filtered.map(p => {
                 const pn = pName(p);
                 const pbg = PR[pn] || "#F1F5F9";
@@ -359,7 +357,7 @@ function MapPage({ onSelect }) {
                       <div style={{ fontSize: 11, color: "#94A3B8" }}>{p.house} · {p.district}</div>
                       <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
                         <Stars rating={p.avg_rating} size={11} />
-                        {p.question_count > 0 && <span style={{ fontSize: 10, color: "#94A3B8" }}>質問{p.question_count}回</span>}
+                        {p.question_count > 0 && <span style={{ fontSize: 10, color: "#94A3B8" }}>発言{p.question_count}回</span>}
                       </div>
                     </div>
                   </div>
@@ -792,14 +790,13 @@ function DetailPanel({ politician: p, onClose }) {
       </div>
 
       {/* 中段：活動スコアカード（独自の通知表形式） */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", borderBottom: "1px solid #F1F5F9" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(3,1fr)", borderBottom: "1px solid #F1F5F9" }}>
         {[
           { label: "市民評価", value: avgR ? `${avgR}点` : "未評価", sub: `${totalR}件の口コミ`, color: "#FBBF24", icon: "⭐" },
-          { label: "国会質問数", value: p.question_count > 0 ? `${p.question_count.toLocaleString()}回` : "—", sub: "最新任期中", color: "#4F46E5", icon: "🎤" },
+          { label: "国会発言数", value: p.question_count > 0 ? `${p.question_count.toLocaleString()}回` : "—", sub: "通算", color: "#4F46E5", icon: "🎤" },
           { label: "当選回数", value: p.terms > 0 ? `${p.terms}回` : "—", sub: "通算", color: "#10B981", icon: "🏆" },
-          { label: "本会議出席率", value: p.attendance_rate > 0 ? `${p.attendance_rate}%` : "—", sub: "現在の任期", color: "#F59E0B", icon: "📋" },
         ].map((s, i) => (
-          <div key={i} style={{ padding: "12px 14px", borderRight: isMobile ? (i % 2 === 0 ? "1px solid #F1F5F9" : "none") : (i < 3 ? "1px solid #F1F5F9" : "none"), borderBottom: isMobile && i < 2 ? "1px solid #F1F5F9" : "none", background: i === 0 ? "#FFFBEB" : "#fff" }}>
+          <div key={i} style={{ padding: "12px 14px", borderRight: isMobile ? (i % 2 === 0 ? "1px solid #F1F5F9" : "none") : (i < 2 ? "1px solid #F1F5F9" : "none"), borderBottom: isMobile && i < 2 ? "1px solid #F1F5F9" : "none", background: i === 0 ? "#FFFBEB" : "#fff" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
               <span style={{ fontSize: 14 }}>{s.icon}</span>
               <span style={{ fontSize: 10, color: "#94A3B8" }}>{s.label}</span>
@@ -871,11 +868,8 @@ function DetailPanel({ politician: p, onClose }) {
                 {/* 国会活動実績 */}
                 <div style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", padding: "12px 0 4px", letterSpacing: 0.5 }}>国会活動実績</div>
                 {[
-                  { label: "国会質問数", value: p.question_count > 0 ? `${p.question_count.toLocaleString()}回` : "—", note: "最新任期中" },
-                  { label: "本会議出席率", value: p.attendance_rate > 0 ? `${p.attendance_rate}%` : "—", note: "現在の任期" },
-                  { label: "提出法案数", value: p.bills_submitted > 0 ? `${p.bills_submitted}件` : "—", note: "議員立法" },
-                  { label: "成立法案数", value: p.bills_passed > 0 ? `${p.bills_passed}件` : "—", note: "成立分" },
-                  { label: "委員会所属", value: p.committee || "—", note: "" },
+                  { label: "国会発言数", value: p.question_count > 0 ? `${p.question_count.toLocaleString()}回` : "—", note: "通算" },
+                  ...(p.committee ? [{ label: "委員会所属", value: p.committee, note: "" }] : []),
                 ].map((row, i) => (
                   <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #F8FAFC" }}>
                     <div>
@@ -901,15 +895,6 @@ function DetailPanel({ politician: p, onClose }) {
                   >
                     総務省で確認 →
                   </a>
-                </div>
-                <div style={{ padding: "8px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontSize: 12, color: "#94A3B8" }}>政治資金収支（年間）</div>
-                    <div style={{ fontSize: 10, color: "#CBD5E1" }}>直近の公開データ</div>
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B" }}>
-                    {p.funds_amount > 0 ? `${(p.funds_amount / 10000).toLocaleString()}万円` : "—"}
-                  </span>
                 </div>
               </div>
             )}
@@ -1378,7 +1363,7 @@ function AboutPage({ setPage }) {
         <div style={{ background: "#fff", borderRadius: 12, padding: "16px 20px", marginBottom: 10, border: "1px solid #E2E8F0" }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: "#1E293B", marginBottom: 8 }}>サイトの目的</div>
           <div style={{ fontSize: 14, color: "#475569", lineHeight: 1.9 }}>
-            政治家レビューは、国会議員の活動実績・国会質問・出席率などの公開情報と、市民による口コミを中立的に共有するプラットフォームです。特定の政党・政治家を支持・批判する目的ではなく、有権者が客観的な情報にアクセスできる場を提供することを目的としています。
+            政治家レビューは、国会議員の基本情報（所属政党・選挙区・当選回数）や国会での発言数などの公開情報と、市民による口コミ・評価を中立的に共有するプラットフォームです。発言数は国立国会図書館「国会会議録検索システム」のデータを用いています。特定の政党・政治家を支持・批判する目的ではなく、有権者が客観的な情報にアクセスできる場を提供することを目的としています。
           </div>
         </div>
 
