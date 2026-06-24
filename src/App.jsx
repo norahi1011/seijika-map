@@ -290,6 +290,7 @@ function RankingPage({ onSelect }) {
 // ============================================================
 function MapPage({ onSelect }) {
   const [politicians, setPoliticians] = useState([]);
+  const [recentReviews, setRecentReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [houseFilter, setHouseFilter] = useState("全て");
@@ -298,11 +299,19 @@ function MapPage({ onSelect }) {
 
   useEffect(() => {
     async function load() {
-      const data = await supabaseFetch("politicians", {
-        select: "*,parties(name,short_name,color_hex)",
-        order: "question_count.desc",
-      });
+      const [data, recent] = await Promise.all([
+        supabaseFetch("politicians", {
+          select: "*,parties(name,short_name,color_hex)",
+          order: "question_count.desc",
+        }),
+        supabaseFetch("reviews", {
+          select: "id,politician_id,rating,body,created_at,politicians(name)",
+          order: "created_at.desc",
+          limit: 5,
+        }),
+      ]);
       setPoliticians(data || []);
+      setRecentReviews(recent || []);
       setLoading(false);
     }
     load();
@@ -447,9 +456,27 @@ function MapPage({ onSelect }) {
           <div style={{ fontSize: 12, fontWeight: 600, color: "#1E293B", margin: "14px 0 10px", paddingBottom: 8, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", gap: 5 }}>
             <span style={{ fontSize: 14 }}>💬</span>最近の口コミ
           </div>
-          <div style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", padding: "12px 0" }}>
-            口コミはまだありません。<br/>最初の投稿者になりましょう！
-          </div>
+          {(loading ? [] : recentReviews).length === 0 ? (
+            <div style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", padding: "12px 0" }}>
+              口コミはまだありません。<br/>最初の投稿者になりましょう！
+            </div>
+          ) : recentReviews.map(r => {
+            const polName = r.politicians?.name || "議員";
+            const snippet = (r.body || "").length > 40 ? (r.body || "").slice(0, 40) + "…" : (r.body || "");
+            const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString("ja-JP") : "";
+            return (
+              <div key={r.id}
+                onClick={() => { const full = politicians.find(p => p.id === r.politician_id); onSelect(full || { id: r.politician_id, name: polName }); }}
+                style={{ padding: "8px 0", borderBottom: "1px solid #F8FAFC", cursor: "pointer" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#1E293B" }}>{polName}</span>
+                  <Stars rating={r.rating} size={11} />
+                </div>
+                <div style={{ fontSize: 11, color: "#64748B", lineHeight: 1.5, marginBottom: 2 }}>{snippet}</div>
+                <div style={{ fontSize: 10, color: "#CBD5E1" }}>{dateStr}</div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
