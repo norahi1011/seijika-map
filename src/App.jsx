@@ -61,6 +61,31 @@ async function supabaseInsert(table, data) {
   } catch { return false; }
 }
 
+// ============================================================
+// 「参考になった」用ユーティリティ（localStorage）
+// ============================================================
+// 端末ごとのトークン（review_helpful の重複防止キー。初回アクセス時に1つ生成）
+function getClientToken() {
+  let t = localStorage.getItem("client_token");
+  if (!t) {
+    t = (crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : "ct-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem("client_token", t);
+  }
+  return t;
+}
+// 押下済み review_id の集合
+function getHelpfulSet() {
+  try { return new Set(JSON.parse(localStorage.getItem("helpful_reviews") || "[]")); }
+  catch { return new Set(); }
+}
+function markHelpful(reviewId) {
+  const s = getHelpfulSet();
+  s.add(reviewId);
+  localStorage.setItem("helpful_reviews", JSON.stringify([...s]));
+}
+
 
 
 // ============================================================
@@ -744,6 +769,8 @@ function SchedulePage() {
 function DetailPanel({ politician: p, onClose }) {
   const [tab, setTab] = useState("口コミ");
   const [reviews, setReviews] = useState([]);
+  const [helpfulCounts, setHelpfulCounts] = useState({}); // { review_id: cnt }
+  const [pressed, setPressed] = useState(() => getHelpfulSet()); // 押下済み review_id
   const [votes, setVotes] = useState([]);
   const [star, setStar] = useState(0);
   const [hoverStar, setHoverStar] = useState(0);
@@ -759,7 +786,17 @@ function DetailPanel({ politician: p, onClose }) {
   useEffect(() => {
     if (p.id) {
       supabaseFetch("reviews", { filter: `politician_id=eq.${p.id}`, order: "created_at.desc" })
-        .then(data => setReviews(data || []));
+        .then(async (data) => {
+          const list = data || [];
+          setReviews(list);
+          const ids = list.map(r => r.id).filter(Boolean);
+          if (ids.length) {
+            const rows = await supabaseFetch("review_helpful_counts", { filter: `review_id=in.(${ids.join(",")})` });
+            const map = {};
+            (rows || []).forEach(x => { map[x.review_id] = x.cnt; });
+            setHelpfulCounts(map);
+          }
+        });
       supabaseFetch("votes", { filter: `politician_id=eq.${p.id}`, order: "voted_at.desc" })
         .then(data => setVotes(data || []));
     }
@@ -781,6 +818,22 @@ function DetailPanel({ politician: p, onClose }) {
       setBody(""); setStar(0);
     }
     setSubmitting(false);
+  };
+
+  const handleHelpful = async (reviewId) => {
+    if (!reviewId || pressed.has(reviewId)) return; // id無し/押下済みは無視
+
+    // 楽観的更新（先にUI反映）
+    setPressed(prev => new Set(prev).add(reviewId));
+    setHelpfulCounts(prev => ({ ...prev, [reviewId]: (prev[reviewId] || 0) + 1 }));
+    markHelpful(reviewId);
+
+    // ok=false は UNIQUE違反(=既に押下済み) or 通信失敗。どちらも押下済みとして確定し、
+    // 二重カウントを避けるため UI はロールバックしない（reviews への UPDATE は一切しない）。
+    await supabaseInsert("review_helpful", {
+      review_id: reviewId,
+      client_token: getClientToken(),
+    });
   };
 
   const totalR = reviews.length || 0;
@@ -851,7 +904,7 @@ function DetailPanel({ politician: p, onClose }) {
                   まだ口コミがありません。<br/>右の投稿フォームから最初の口コミを書きましょう！
                 </div>
               ) : reviews.map((r, i) => (
-                <div key={i} style={{ paddingBottom: 12, marginBottom: 12, borderBottom: i < reviews.length-1 ? "1px solid #F8FAFC" : "none" }}>
+                <div key={r.id ?? i} style={{ paddingBottom: 12, marginBottom: 12, borderBottom: i < reviews.length-1 ? "1px solid #F8FAFC" : "none" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <Stars rating={r.rating} size={13} />
@@ -860,6 +913,25 @@ function DetailPanel({ politician: p, onClose }) {
                     <span style={{ fontSize: 11, color: "#CBD5E1" }}>{r.created_at ? new Date(r.created_at).toLocaleDateString("ja-JP") : ""} · 匿名</span>
                   </div>
                   <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.7, margin: 0 }}>{r.body}</p>
+                  {r.id && (() => {
+                    const done = pressed.has(r.id);
+                    return (
+                      <button
+                        onClick={() => handleHelpful(r.id)}
+                        disabled={done}
+                        style={{
+                          marginTop: 8, display: "inline-flex", alignItems: "center", gap: 5,
+                          padding: "4px 10px", fontSize: 11, borderRadius: 999,
+                          border: `1px solid ${done ? "#C7D2FE" : "#E2E8F0"}`,
+                          background: done ? "#EEF2FF" : "#fff",
+                          color: done ? "#4F46E5" : "#64748B",
+                          cursor: done ? "default" : "pointer",
+                        }}
+                      >
+                        👍 参考になった ({helpfulCounts[r.id] || 0})
+                      </button>
+                    );
+                  })()}
                 </div>
               ))
             )}
