@@ -61,6 +61,16 @@ async function supabaseInsert(table, data) {
   } catch { return false; }
 }
 
+async function supabaseRpc(fn, params) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: "POST",
+      headers: { ...SUPA_HEADERS, "Prefer": "return=minimal" },
+      body: JSON.stringify(params),
+    });
+  } catch {}
+}
+
 // ============================================================
 // 「参考になった」用ユーティリティ（localStorage）
 // ============================================================
@@ -1135,8 +1145,20 @@ function ArticlePage({ slug, onBack }) {
     if (!slug) return;
     setLoading(true);
     supabaseFetch("articles", { filter: `slug=eq.${slug}`, limit: 1 }).then(data => {
-      setArticle(data?.[0] || null);
+      const found = data?.[0] || null;
+      setArticle(found);
       setLoading(false);
+      // view_count カウントアップ（同一記事は1回だけ。localStorageで重複防止）
+      if (found) {
+        try {
+          const viewed = JSON.parse(localStorage.getItem("viewed_articles") || "[]");
+          if (!viewed.includes(slug)) {
+            supabaseRpc("increment_article_view", { article_slug: slug });
+            viewed.push(slug);
+            localStorage.setItem("viewed_articles", JSON.stringify(viewed));
+          }
+        } catch {}
+      }
     });
   }, [slug]);
 
