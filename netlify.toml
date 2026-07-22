@@ -2,6 +2,10 @@
   command = "npm run build"
   publish = "build"
 
+# 毎日 UTC 20:00（日本時間 翌5:00）にビルドを起動し sitemap.xml を再生成
+[functions."rebuild-sitemap"]
+  schedule = "0 20 * * *"
+
 [[redirects]]
   from = "/articles/*"
   to = "/index.html"
