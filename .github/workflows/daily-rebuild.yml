@@ -1,0 +1,33 @@
+# Netlifyのビルドフックを毎日叩いて sitemap.xml を再生成する
+# ビルド時に prebuild（scripts/generate-sitemap.js）が走り、
+# Supabaseの最新の公開記事から public/sitemap.xml が作り直される
+name: Daily sitemap rebuild
+
+on:
+  schedule:
+    # 毎日 20:00 UTC = 翌 05:00 JST
+    - cron: "0 20 * * *"
+  # Actionsタブから手動実行もできるようにしておく
+  workflow_dispatch:
+
+jobs:
+  trigger-netlify-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Netlify build hook
+        env:
+          BUILD_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: |
+          if [ -z "$BUILD_HOOK" ]; then
+            echo "::error::secrets.NETLIFY_BUILD_HOOK が未設定です"
+            exit 1
+          fi
+
+          status=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' -d '{}' "$BUILD_HOOK")
+          echo "Netlify build hook: HTTP $status"
+
+          case "$status" in
+            200|201|204) echo "✅ Netlifyビルドを起動しました" ;;
+            *) echo "::error::ビルドフックの起動に失敗しました (HTTP $status)"; exit 1 ;;
+          esac
