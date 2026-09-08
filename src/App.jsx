@@ -72,6 +72,115 @@ async function supabaseRpc(fn, params) {
 }
 
 // ============================================================
+// ページごとの title / meta description（SEO）
+// ============================================================
+// このサイトは React Router を使わず page state で画面を切り替えるため、
+// 画面が変わっても document.title と meta が index.html のまま固定されてしまう。
+// 各画面から usePageMeta() を呼んで、その都度書き換える。
+const SITE_NAME = "政治家レビュー";
+const SITE_URL = "https://seijika-map.netlify.app";
+const DEFAULT_DESCRIPTION =
+  "全国712名の国会議員を氏名・政党・選挙区から検索。発言回数・委員会・質問主意書などの活動データと、市民の口コミを無料で確認できます。";
+
+// タイトルにサイト名を付けると SERP で末尾が切れるため、短いときだけ付ける
+const TITLE_SUFFIX_MAX = 28;
+function withSiteName(title) {
+  if (!title) return `${SITE_NAME}｜国会議員712名の活動データと口コミ`;
+  return title.length <= TITLE_SUFFIX_MAX ? `${title}｜${SITE_NAME}` : title;
+}
+
+function setMetaTag(key, content, attr = "name") {
+  if (typeof document === "undefined" || !content) return;
+  let el = document.head.querySelector(`meta[${attr}="${key}"]`);
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+}
+
+function setCanonical(href) {
+  if (typeof document === "undefined" || !href) return;
+  let el = document.head.querySelector('link[rel="canonical"]');
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", "canonical");
+    document.head.appendChild(el);
+  }
+  el.setAttribute("href", href);
+}
+
+function usePageMeta({ title, description, canonical, image, type }) {
+  useEffect(() => {
+    if (typeof document === "undefined" || !title) return;
+    const desc = description || DEFAULT_DESCRIPTION;
+    const url = canonical || SITE_URL;
+    document.title = title;
+    setMetaTag("description", desc);
+    setMetaTag("og:site_name", SITE_NAME, "property");
+    setMetaTag("og:title", title, "property");
+    setMetaTag("og:description", desc, "property");
+    setMetaTag("og:type", type || "website", "property");
+    setMetaTag("og:url", url, "property");
+    if (image) setMetaTag("og:image", image, "property");
+    setMetaTag("twitter:card", image ? "summary_large_image" : "summary");
+    setMetaTag("twitter:title", title);
+    setMetaTag("twitter:description", desc);
+    if (image) setMetaTag("twitter:image", image);
+    setCanonical(url);
+  }, [title, description, canonical, image, type]);
+}
+
+// 記事以外の画面。いずれも URL は "/" しか持たないため canonical は SITE_URL に揃える
+const PAGE_META = {
+  map: {
+    title: `${SITE_NAME}｜国会議員712名の活動データと口コミ`,
+    description: DEFAULT_DESCRIPTION,
+  },
+  ranking: {
+    title: withSiteName("国会議員ランキング"),
+    description:
+      "発言回数・質問主意書件数などの活動データで国会議員712名を並べ替え。数字で見る議員の仕事ぶりを比較できます。",
+  },
+  news: {
+    title: withSiteName("議員ニュース"),
+    description:
+      "国会議員に関する最新の動きと、市民から寄せられた最近の口コミをまとめて確認できます。",
+  },
+  column: {
+    title: withSiteName("コラム一覧"),
+    description:
+      "選挙・政治資金・国会のしくみを、条文と公的データにもとづいて解説した記事の一覧です。",
+  },
+  kokkai: {
+    title: withSiteName("国会記録・発言検索"),
+    description:
+      "国会会議録のデータから、どの議員がどの会議でどんな発言をしたかを検索できます。",
+  },
+  schedule: {
+    title: withSiteName("国会日程"),
+    description: "開会中の国会の日程と、各委員会の開催予定を確認できます。",
+  },
+  terms: {
+    title: withSiteName("利用規約"),
+    description: "政治家レビューの利用規約と、口コミ投稿にあたってのルールを掲載しています。",
+  },
+  privacy: {
+    title: withSiteName("プライバシーポリシー"),
+    description: "政治家レビューにおける個人情報の取り扱いとアクセス解析について説明しています。",
+  },
+  about: {
+    title: withSiteName("運営者情報"),
+    description: "政治家レビューの運営方針・データの出典・掲載基準について説明しています。",
+  },
+  contact: {
+    title: withSiteName("お問い合わせ"),
+    description: "政治家レビューへのご意見・掲載内容の訂正依頼はこちらのフォームからお送りください。",
+  },
+};
+
+// ============================================================
 // 「参考になった」用ユーティリティ（localStorage）
 // ============================================================
 // 端末ごとのトークン（review_helpful の重複防止キー。初回アクセス時に1つ生成）
@@ -1162,6 +1271,26 @@ function ArticlePage({ slug, onBack }) {
     });
   }, [slug]);
 
+  // 記事ごとの title / description。meta_title・meta_description を優先し、
+  // 無い場合は title / excerpt / 本文冒頭の順にフォールバックする。
+  const metaTitle = loading
+    ? `${SITE_NAME}｜国会議員712名の活動データと口コミ`
+    : article
+      ? withSiteName(article.meta_title || article.title)
+      : withSiteName("記事が見つかりませんでした");
+  const metaDescription = article
+    ? article.meta_description ||
+      article.excerpt ||
+      (article.content || "").replace(/[#*>[\]()!|`_-]|https?:\/\/\S+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120)
+    : DEFAULT_DESCRIPTION;
+  usePageMeta({
+    title: metaTitle,
+    description: metaDescription,
+    canonical: slug ? `${SITE_URL}/articles/${slug}` : SITE_URL,
+    image: article?.thumbnail_url,
+    type: article ? "article" : "website",
+  });
+
   const fmtDate = iso => {
     if (!iso) return "";
     const d = new Date(iso);
@@ -1556,9 +1685,27 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  // 記事以外の画面へ移るときは URL を "/" に戻す。
+  // これをしないと /articles/<slug> のまま別画面が表示され、canonical と URL がずれる。
+  const goPage = key => {
+    if (page === "article") {
+      setCurrentSlug(null);
+      window.history.pushState({}, "", "/");
+    }
+    setPage(key);
+  };
+
+  // 記事詳細のメタは ArticlePage 側で設定するため、ここでは title を渡さず何もしない
+  const pageMeta = page === "article" ? {} : (PAGE_META[page] || PAGE_META.map);
+  usePageMeta({
+    title: pageMeta.title,
+    description: pageMeta.description,
+    canonical: SITE_URL,
+  });
+
   return (
     <div style={{ fontFamily: "'Hiragino Sans','Yu Gothic',sans-serif", background: "#F8FAFF", minHeight: "100vh" }}>
-      <Header page={page} setPage={setPage} stats={stats} />
+      <Header page={page} setPage={goPage} stats={stats} />
       {page === "map" && <MapPage onSelect={setSelectedPol} />}
       {page === "ranking" && <RankingPage onSelect={setSelectedPol} />}
       {page === "news" && <NewsPage onSelect={setSelectedPol} />}
@@ -1569,7 +1716,7 @@ export default function App() {
       {page === "terms" && <TermsPage />}
       {page === "contact" && <ContactPage />}
       {page === "privacy" && <PrivacyPage />}
-      {page === "about" && <AboutPage setPage={setPage} />}
+      {page === "about" && <AboutPage setPage={goPage} />}
       {selectedPol && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, maxHeight: "70vh", overflowY: "auto", boxShadow: "0 -8px 32px rgba(0,0,0,0.15)" }}>
           <DetailPanel politician={selectedPol} onClose={() => setSelectedPol(null)} />
@@ -1580,10 +1727,10 @@ export default function App() {
         <footer style={{ borderTop: "1px solid #E2E8F0", padding: "16px 20px", background: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
           <span style={{ fontSize: 12, color: "#94A3B8" }}>© {new Date().getFullYear()} 政治家レビュー</span>
           <div style={{ display: "flex", gap: 16 }}>
-            <button onClick={() => setPage("terms")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>利用規約</button>
-            <button onClick={() => setPage("privacy")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>プライバシーポリシー</button>
-            <button onClick={() => setPage("about")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>運営者情報</button>
-            <button onClick={() => setPage("contact")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>お問い合わせ</button>
+            <button onClick={() => goPage("terms")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>利用規約</button>
+            <button onClick={() => goPage("privacy")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>プライバシーポリシー</button>
+            <button onClick={() => goPage("about")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>運営者情報</button>
+            <button onClick={() => goPage("contact")} style={{ fontSize: 12, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>お問い合わせ</button>
             <span style={{ fontSize: 12, color: "#94A3B8" }}>国会データ出典：国立国会図書館</span>
           </div>
         </footer>

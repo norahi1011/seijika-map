@@ -3,8 +3,28 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="政治家の口コミ・評価サイト" />
-    <title>政治家マップ</title>
+
+    <!--
+      ここに書いた値は「JavaScriptを実行しないクローラ」に届く既定値。
+      画面ごとの title / description は src/App.jsx の usePageMeta() が
+      レンダリング後に上書きする（Googlebot はレンダリング後のDOMを見る）。
+      ただし SNS のカード生成クローラは JS を実行しないため、
+      シェア時のカードは常にこの既定値が使われる。
+    -->
+    <meta name="description" content="全国712名の国会議員を氏名・政党・選挙区から検索。発言回数・委員会・質問主意書などの活動データと、市民の口コミを無料で確認できます。" />
+    <title>政治家レビュー｜国会議員712名の活動データと口コミ</title>
+    <link rel="canonical" href="https://seijika-map.netlify.app/" />
+
+    <meta property="og:site_name" content="政治家レビュー" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="政治家レビュー｜国会議員712名の活動データと口コミ" />
+    <meta property="og:description" content="全国712名の国会議員を氏名・政党・選挙区から検索。発言回数・委員会・質問主意書などの活動データと、市民の口コミを無料で確認できます。" />
+    <meta property="og:url" content="https://seijika-map.netlify.app/" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="政治家レビュー｜国会議員712名の活動データと口コミ" />
+    <meta name="twitter:description" content="全国712名の国会議員を氏名・政党・選挙区から検索。発言回数・委員会・質問主意書などの活動データと、市民の口コミを無料で確認できます。" />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     
     <!-- Google tag (gtag.js) -->
